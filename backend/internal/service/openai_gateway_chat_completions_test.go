@@ -43,6 +43,7 @@ func TestForwardAsChatCompletions_OAuthDoesNotAutoInjectCompatSessionForStateles
 	result, err := svc.ForwardAsChatCompletions(context.Background(), c, account, body, "", "gpt-5.5")
 	require.NoError(t, err)
 	require.NotNil(t, result)
+	require.Equal(t, "gpt-5.5", gjson.GetBytes(upstream.lastBody, "model").String())
 	require.Empty(t, upstream.lastReq.Header.Get("session_id"))
 	require.Empty(t, upstream.lastReq.Header.Get("conversation_id"))
 	require.False(t, gjson.GetBytes(upstream.lastBody, "prompt_cache_key").Exists())
