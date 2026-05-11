@@ -50,10 +50,17 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 
 	promptCacheKey = strings.TrimSpace(promptCacheKey)
 	compatPromptCacheInjected := false
-	if promptCacheKey == "" && account.Type == AccountTypeOAuth && shouldAutoInjectPromptCacheKeyForCompat(upstreamModel) {
-		promptCacheKey = deriveCompatPromptCacheKey(&chatReq, upstreamModel)
-		compatPromptCacheInjected = promptCacheKey != ""
-	}
+	// 中文说明：
+	// chat/completions 的大量调用方是“无状态单次提问”。
+	// 如果这里像 /v1/messages 兼容层那样，基于请求内容自动生成稳定
+	// prompt_cache_key/session_id，就会把不同用户的相似首轮问题
+	// 错误粘到同一个 Codex 会话上。
+	//
+	// 一旦上游沿用了旧 turn-state / 旧模型上下文，就可能出现前端选
+	// gpt-5.5，但上游实际按旧的 gpt-5.1 会话处理并返回不支持错误。
+	//
+	// 因此这里仅移除“自动合成 content-derived 会话键”这一步，
+	// 避免无状态请求被错误续写到旧的 Codex 会话。
 
 	// 3. Convert to Responses and forward
 	// ChatCompletionsToResponses always sets Stream=true (upstream always streams).
