@@ -987,6 +987,16 @@ func buildOpsSystemLogsWhere(filter *service.OpsSystemLogFilter) (string, []any,
 			clauses = append(clauses, "COALESCE(l.model,'') = $"+itoa(len(args)))
 			hasConstraint = true
 		}
+		if v := strings.TrimSpace(filter.TokenAuditRiskLevel); v != "" {
+			args = append(args, v)
+			clauses = append(clauses, "COALESCE(l.extra->>'risk_level','') = $"+itoa(len(args)))
+			hasConstraint = true
+		}
+		if v := strings.TrimSpace(filter.TokenAuditTokenType); v != "" {
+			args = append(args, v)
+			clauses = append(clauses, "COALESCE(l.extra->>'token_type','') = $"+itoa(len(args)))
+			hasConstraint = true
+		}
 		if v := strings.TrimSpace(filter.Query); v != "" {
 			like := "%" + v + "%"
 			args = append(args, like)

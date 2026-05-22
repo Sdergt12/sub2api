@@ -43,6 +43,14 @@ type CreateAnnouncementInput struct {
 	ActorID    *int64 // 管理员用户ID
 }
 
+type CreateDirectAnnouncementInput struct {
+	TargetUserID int64
+	Title        string
+	Content      string
+	NotifyMode   string
+	ActorID      *int64 // 管理员用户ID
+}
+
 type UpdateAnnouncementInput struct {
 	Title      *string
 	Content    *string
@@ -127,6 +135,40 @@ func (s *AnnouncementService) Create(ctx context.Context, input *CreateAnnouncem
 		return nil, fmt.Errorf("create announcement: %w", err)
 	}
 	return a, nil
+}
+
+func (s *AnnouncementService) CreateDirect(ctx context.Context, input *CreateDirectAnnouncementInput) (*Announcement, error) {
+	if input == nil {
+		return nil, fmt.Errorf("create direct announcement: nil input")
+	}
+	if input.TargetUserID <= 0 {
+		return nil, fmt.Errorf("create direct announcement: invalid target user")
+	}
+	if _, err := s.userRepo.GetByID(ctx, input.TargetUserID); err != nil {
+		return nil, fmt.Errorf("create direct announcement: get target user: %w", err)
+	}
+
+	// 复用公告中心：通过 user targeting 精确命中单个用户，用户侧铃铛、弹窗和已读状态无需新链路。
+	return s.Create(ctx, &CreateAnnouncementInput{
+		Title:      input.Title,
+		Content:    input.Content,
+		Status:     AnnouncementStatusActive,
+		NotifyMode: input.NotifyMode,
+		Targeting: AnnouncementTargeting{
+			AnyOf: []AnnouncementConditionGroup{
+				{
+					AllOf: []AnnouncementCondition{
+						{
+							Type:     AnnouncementConditionTypeUser,
+							Operator: AnnouncementOperatorIn,
+							UserIDs:  []int64{input.TargetUserID},
+						},
+					},
+				},
+			},
+		},
+		ActorID: input.ActorID,
+	})
 }
 
 func (s *AnnouncementService) Update(ctx context.Context, id int64, input *UpdateAnnouncementInput) (*Announcement, error) {
@@ -243,7 +285,7 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID int64, unr
 		if !a.IsActiveAt(now) {
 			continue
 		}
-		if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+		if !a.Targeting.MatchesUser(user.ID, user.Balance, activeGroupIDs) {
 			continue
 		}
 		visible = append(visible, a)
@@ -315,7 +357,7 @@ func (s *AnnouncementService) MarkRead(ctx context.Context, userID, announcement
 		activeGroupIDs[activeSubs[i].GroupID] = struct{}{}
 	}
 
-	if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+	if !a.Targeting.MatchesUser(user.ID, user.Balance, activeGroupIDs) {
 		return ErrAnnouncementNotFound
 	}
 
@@ -379,7 +421,7 @@ func (s *AnnouncementService) ListUserReadStatus(
 			Email:    u.Email,
 			Username: u.Username,
 			Balance:  u.Balance,
-			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(u.Balance, activeGroupIDs),
+			Eligible: domain.AnnouncementTargeting(ann.Targeting).MatchesUser(u.ID, u.Balance, activeGroupIDs),
 			ReadAt:   ptr,
 		})
 	}

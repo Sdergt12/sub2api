@@ -20,7 +20,7 @@
             @change="handleStatusChange"
           />
 
-          <!-- Right: Action buttons -->
+          <!-- 右侧操作按钮 -->
           <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
             <button
               @click="loadAnnouncements"
@@ -29,6 +29,10 @@
               :title="t('common.refresh')"
             >
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
+            </button>
+            <button @click="openDirectDialog" class="btn btn-secondary">
+              <Icon name="mail" size="md" class="mr-1" />
+              {{ t('admin.announcements.sendDirect') }}
             </button>
             <button @click="openCreateDialog" class="btn btn-primary">
               <Icon name="plus" size="md" class="mr-1" />
@@ -222,6 +226,56 @@
       </template>
     </BaseDialog>
 
+    <!-- 单用户通知弹窗 -->
+    <BaseDialog
+      :show="showDirectDialog"
+      :title="t('admin.announcements.sendDirect')"
+      width="normal"
+      @close="closeDirectDialog"
+    >
+      <form id="direct-announcement-form" @submit.prevent="handleSendDirect" class="space-y-4">
+        <div>
+          <label class="input-label">{{ t('admin.announcements.form.targetUserId') }}</label>
+          <input
+            v-model.number="directForm.target_user_id"
+            type="number"
+            min="1"
+            step="1"
+            class="input"
+            required
+          />
+          <p class="input-hint">{{ t('admin.announcements.form.targetUserIdHint') }}</p>
+        </div>
+
+        <div>
+          <label class="input-label">{{ t('admin.announcements.form.title') }}</label>
+          <input v-model="directForm.title" type="text" class="input" required />
+        </div>
+
+        <div>
+          <label class="input-label">{{ t('admin.announcements.form.content') }}</label>
+          <textarea v-model="directForm.content" rows="5" class="input" required></textarea>
+        </div>
+
+        <div>
+          <label class="input-label">{{ t('admin.announcements.form.notifyMode') }}</label>
+          <Select v-model="directForm.notify_mode" :options="notifyModeOptions" />
+          <p class="input-hint">{{ t('admin.announcements.form.directHint') }}</p>
+        </div>
+      </form>
+
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <button type="button" @click="closeDirectDialog" class="btn btn-secondary">
+            {{ t('common.cancel') }}
+          </button>
+          <button type="submit" form="direct-announcement-form" :disabled="directSending" class="btn btn-primary">
+            {{ directSending ? t('common.saving') : t('admin.announcements.sendDirect') }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
+
     <!-- Delete Confirmation -->
     <ConfirmDialog
       :show="showDeleteDialog"
@@ -327,6 +381,10 @@ const statusLabel = (status: string) => {
 const targetingSummary = (targeting: AnnouncementTargeting) => {
   const anyOf = targeting?.any_of ?? []
   if (!anyOf || anyOf.length === 0) return t('admin.announcements.targetingSummaryAll')
+  const userIDs = anyOf
+    .flatMap((group) => group.all_of ?? [])
+    .flatMap((condition) => condition.user_ids ?? [])
+  if (userIDs.length === 1) return t('admin.announcements.targetingSummaryUser', { userId: userIDs[0] })
   return t('admin.announcements.targetingSummaryCustom', { groups: anyOf.length })
 }
 
@@ -473,6 +531,57 @@ function openEditDialog(row: Announcement) {
 function closeEdit() {
   showEditDialog.value = false
   editingAnnouncement.value = null
+}
+
+// ===== 单用户通知 =====
+const showDirectDialog = ref(false)
+const directSending = ref(false)
+const directForm = reactive({
+  target_user_id: null as number | null,
+  title: '',
+  content: '',
+  notify_mode: 'popup'
+})
+
+function resetDirectForm() {
+  directForm.target_user_id = null
+  directForm.title = ''
+  directForm.content = ''
+  directForm.notify_mode = 'popup'
+}
+
+function openDirectDialog() {
+  resetDirectForm()
+  showDirectDialog.value = true
+}
+
+function closeDirectDialog() {
+  showDirectDialog.value = false
+}
+
+async function handleSendDirect() {
+  if (!directForm.target_user_id || directForm.target_user_id <= 0) {
+    appStore.showError(t('admin.announcements.invalidTargetUser'))
+    return
+  }
+
+  directSending.value = true
+  try {
+    await adminAPI.announcements.createDirect({
+      target_user_id: directForm.target_user_id,
+      title: directForm.title,
+      content: directForm.content,
+      notify_mode: directForm.notify_mode as any
+    })
+    appStore.showSuccess(t('admin.announcements.directSent'))
+    closeDirectDialog()
+    await loadAnnouncements()
+  } catch (error: any) {
+    console.error('Failed to send direct announcement:', error)
+    appStore.showError(error.response?.data?.detail || t('admin.announcements.failedToSendDirect'))
+  } finally {
+    directSending.value = false
+  }
 }
 
 function buildCreatePayload() {

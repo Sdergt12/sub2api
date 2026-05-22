@@ -848,6 +848,8 @@ export interface OpsSystemLogQuery {
   account_id?: number | null
   platform?: string
   model?: string
+  risk_level?: string
+  token_type?: string
   q?: string
 }
 
