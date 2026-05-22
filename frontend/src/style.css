@@ -735,21 +735,48 @@
 }
 
 @layer components {
+  [data-ui-mode='gundam'],
+  [data-ui-mode='gundam-lite'] {
+    --hud-blue: 37 99 235;
+    --hud-red: 220 38 38;
+    --hud-yellow: 234 179 8;
+    --hud-panel: 255 255 255;
+  }
+
   [data-ui-mode='gundam'] body {
     background:
+      linear-gradient(rgba(37, 99, 235, 0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px),
       radial-gradient(circle at 18% 10%, rgba(37, 99, 235, 0.14), transparent 28rem),
       radial-gradient(circle at 88% 4%, rgba(234, 179, 8, 0.14), transparent 22rem),
       linear-gradient(135deg, #f8fbff 0%, #eef4fb 46%, #ffffff 100%);
+    background-size: 28px 28px, 28px 28px, auto, auto, auto;
   }
 
   [data-ui-mode='gundam'].dark body {
     background:
+      linear-gradient(rgba(59, 130, 246, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59, 130, 246, 0.07) 1px, transparent 1px),
       radial-gradient(circle at 18% 10%, rgba(59, 130, 246, 0.24), transparent 30rem),
       radial-gradient(circle at 88% 4%, rgba(239, 68, 68, 0.18), transparent 24rem),
       linear-gradient(135deg, #07111f 0%, #0b1628 52%, #101827 100%);
+    background-size: 28px 28px, 28px 28px, auto, auto, auto;
   }
 
-  [data-ui-mode='gundam'] .sidebar {
+  [data-ui-mode='gundam-lite'] body {
+    background:
+      radial-gradient(circle at 18% 10%, rgba(37, 99, 235, 0.09), transparent 28rem),
+      linear-gradient(135deg, #f8fbff 0%, #f3f7fb 100%);
+  }
+
+  [data-ui-mode='gundam-lite'].dark body {
+    background:
+      radial-gradient(circle at 18% 10%, rgba(59, 130, 246, 0.16), transparent 30rem),
+      linear-gradient(135deg, #07111f 0%, #0b1628 100%);
+  }
+
+  [data-ui-mode='gundam'] .sidebar,
+  [data-ui-mode='gundam-lite'] .sidebar {
     @apply border-blue-200 bg-white/95 shadow-xl dark:border-blue-900/60 dark:bg-slate-950/95;
     background-image:
       linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 34%),
@@ -788,7 +815,44 @@
     box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(37, 99, 235, 0.08);
   }
 
-  [data-ui-mode='gundam'] .btn {
+  [data-ui-mode='gundam-lite'] .card,
+  [data-ui-mode='gundam-lite'] .glass-card,
+  [data-ui-mode='gundam-lite'] .card-glass,
+  [data-ui-mode='gundam-lite'] .dialog-container,
+  [data-ui-mode='gundam-lite'] .modal-content {
+    @apply rounded-lg border-blue-200 bg-white/[0.92] shadow-sm dark:border-blue-900/60 dark:bg-slate-900/[0.92];
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.06);
+  }
+
+  [data-ui-mode='gundam'] .card::before,
+  [data-ui-mode='gundam'] .glass-card::before {
+    content: '';
+    display: block;
+    height: 3px;
+    margin: -1rem -1rem 1rem;
+    background: linear-gradient(90deg, #2563eb 0 36%, #facc15 36% 52%, #dc2626 52% 68%, transparent 68%);
+    opacity: 0.85;
+  }
+
+  [data-ui-mode='gundam'] .card::after,
+  [data-ui-mode='gundam'] .glass-card::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(120deg, transparent 0 42%, rgba(37, 99, 235, 0.08) 48%, transparent 54%);
+    opacity: 0;
+    transform: translateX(-18%);
+  }
+
+  [data-ui-mode='gundam'] .card:hover::after,
+  [data-ui-mode='gundam'] .glass-card:hover::after {
+    animation: gundam-scan 1.4s ease-out;
+  }
+
+  [data-ui-mode='gundam'] .btn,
+  [data-ui-mode='gundam-lite'] .btn {
     @apply rounded-md font-bold uppercase tracking-wide;
   }
 
@@ -802,7 +866,9 @@
   }
 
   [data-ui-mode='gundam'] .input,
-  [data-ui-mode='gundam'] select.input {
+  [data-ui-mode='gundam'] select.input,
+  [data-ui-mode='gundam-lite'] .input,
+  [data-ui-mode='gundam-lite'] select.input {
     @apply rounded-md border-blue-200 bg-white/95 focus:border-blue-500 focus:ring-blue-500/30 dark:border-blue-800 dark:bg-slate-950/80;
   }
 
@@ -828,6 +894,42 @@
 
   [data-ui-mode='gundam'] .dropdown {
     @apply rounded-lg border-blue-200 dark:border-blue-900/70;
+  }
+
+  [data-ui-mode='gundam'] .animate-spin {
+    filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.35));
+  }
+
+  [data-ui-mode='gundam-lite'] .sidebar-link-active {
+    @apply border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-100;
+  }
+
+  @keyframes gundam-scan {
+    0% {
+      opacity: 0;
+      transform: translateX(-35%);
+    }
+    35% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(35%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-ui-mode='gundam'] .card:hover::after,
+    [data-ui-mode='gundam'] .glass-card:hover::after {
+      animation: none;
+    }
+
+    [data-ui-mode='gundam'] *,
+    [data-ui-mode='gundam-lite'] * {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
   }
 }
 

@@ -84,6 +84,8 @@ func (e *linuxDoTokenExchangeError) Error() string {
 func (h *AuthHandler) LinuxDoOAuthStart(c *gin.Context) {
 	cfg, err := h.getLinuxDoOAuthConfig(c.Request.Context())
 	if err != nil {
+		c.Redirect(http.StatusFound, linuxDoOAuthDefaultRedirectTo)
+		c.Redirect(http.StatusFound, linuxDoOAuthDefaultRedirectTo)
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -322,6 +324,16 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 		redirectOAuthError(c, frontendCallback, "session_error", infraerrors.Reason(err), infraerrors.Message(err))
 		return
 	}
+	if compatEmailUser == nil && !h.isForceEmailOnThirdPartySignup(c.Request.Context()) {
+		tokenPair, err := h.loginOrRegisterLinuxDoSyntheticUser(c.Request.Context(), identityKey, email, username, displayName, avatarURL, upstreamClaims)
+		if err != nil {
+			redirectOAuthError(c, frontendCallback, infraerrors.Reason(err), infraerrors.Message(err), "")
+			return
+		}
+		clearOAuthPendingBrowserCookie(c, secureCookie)
+		redirectOAuthSuccess(c, frontendCallback, tokenPair, redirectTo)
+		return
+	}
 	if err := h.createLinuxDoOAuthChoicePendingSession(
 		c,
 		identityKey,
@@ -338,6 +350,50 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 		return
 	}
 	redirectToFrontendCallback(c, frontendCallback)
+}
+
+func (h *AuthHandler) loginOrRegisterLinuxDoSyntheticUser(
+	ctx context.Context,
+	identity service.PendingAuthIdentityKey,
+	email string,
+	username string,
+	displayName string,
+	avatarURL string,
+	upstreamClaims map[string]any,
+) (*service.TokenPair, error) {
+	if h == nil || h.authService == nil {
+		return nil, infraerrors.ServiceUnavailable("AUTH_SERVICE_NOT_READY", "auth service is not ready")
+	}
+	client := h.entClient()
+	if client == nil {
+		return nil, infraerrors.ServiceUnavailable("PENDING_AUTH_NOT_READY", "pending auth service is not ready")
+	}
+	if strings.TrimSpace(username) == "" {
+		username = firstNonEmpty(displayName, "linuxdo-user")
+	}
+	if strings.TrimSpace(displayName) != "" {
+		username = displayName
+	}
+	tokenPair, user, err := h.authService.LoginOrRegisterLinuxDoSyntheticWithTokenPair(ctx, email, username)
+	if err != nil {
+		return nil, err
+	}
+
+	// LinuxDo 登录使用 subject 生成的 synthetic email 作为稳定本地账号，不再要求邮箱验证码、密码或邀请码。
+	session := &dbent.PendingAuthSession{
+		ProviderType:           identity.ProviderType,
+		ProviderKey:            identity.ProviderKey,
+		ProviderSubject:        identity.ProviderSubject,
+		UpstreamIdentityClaims: upstreamClaims,
+		Intent:                 oauthIntentLogin,
+	}
+	// 这里不创建 pending session，也不写 adoption decision，避免 LinuxDo 首登再次落入邮箱/邀请码补全流程。
+	// 身份绑定仍复用 pending OAuth 的底层绑定逻辑；昵称由 OAuth 登录用户名同步，头像后续可由用户资料绑定入口更新。
+	if err := applyPendingOAuthBinding(ctx, client, h.authService, h.userService, session, nil, &user.ID, true, false); err != nil {
+		return nil, err
+	}
+	h.authService.RecordSuccessfulLogin(ctx, user.ID)
+	return tokenPair, nil
 }
 
 func (h *AuthHandler) findLinuxDoCompatEmailUser(ctx context.Context, email string) (*dbent.User, error) {
@@ -744,6 +800,20 @@ func redirectOAuthError(c *gin.Context, frontendCallback string, code string, me
 	redirectWithFragment(c, frontendCallback, fragment)
 }
 
+func redirectOAuthSuccess(c *gin.Context, frontendCallback string, tokenPair *service.TokenPair, redirectTo string) {
+	fragment := url.Values{}
+	if tokenPair != nil {
+		fragment.Set("access_token", tokenPair.AccessToken)
+		fragment.Set("refresh_token", tokenPair.RefreshToken)
+		fragment.Set("expires_in", strconv.FormatInt(int64(tokenPair.ExpiresIn), 10))
+		fragment.Set("token_type", "Bearer")
+	}
+	if redirect := sanitizeFrontendRedirectPath(redirectTo); redirect != "" {
+		fragment.Set("redirect", redirect)
+	}
+	redirectWithRawFragment(c, frontendCallback, fragment.Encode())
+}
+
 func redirectWithFragment(c *gin.Context, frontendCallback string, fragment url.Values) {
 	u, err := url.Parse(frontendCallback)
 	if err != nil {
@@ -756,6 +826,25 @@ func redirectWithFragment(c *gin.Context, frontendCallback string, fragment url.
 		return
 	}
 	u.Fragment = fragment.Encode()
+	c.Header("Cache-Control", "no-store")
+	c.Header("Pragma", "no-cache")
+	c.Redirect(http.StatusFound, u.String())
+}
+
+func redirectWithRawFragment(c *gin.Context, frontendCallback string, rawFragment string) {
+	u, err := url.Parse(frontendCallback)
+	if err != nil {
+		// 兜底：尽力跳转到默认页面，避免卡死在回调页。
+		c.Redirect(http.StatusFound, linuxDoOAuthDefaultRedirectTo)
+		return
+	}
+	if u.Scheme != "" && !strings.EqualFold(u.Scheme, "http") && !strings.EqualFold(u.Scheme, "https") {
+		c.Redirect(http.StatusFound, linuxDoOAuthDefaultRedirectTo)
+		return
+	}
+	decodedFragment, _ := url.QueryUnescape(rawFragment)
+	u.Fragment = decodedFragment
+	u.RawFragment = rawFragment
 	c.Header("Cache-Control", "no-store")
 	c.Header("Pragma", "no-cache")
 	c.Redirect(http.StatusFound, u.String())

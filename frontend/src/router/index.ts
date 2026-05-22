@@ -513,6 +513,17 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/format-converter',
+    name: 'AdminFormatConverter',
+    component: () => import('@/views/admin/FormatConverterView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Format Converter',
+      description: 'Convert GPT Session, CPA and Sub2API formats locally'
+    }
+  },
+  {
     path: '/admin/proxies',
     name: 'AdminProxies',
     component: () => import('@/views/admin/ProxiesView.vue'),

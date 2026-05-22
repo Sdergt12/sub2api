@@ -62,6 +62,9 @@ func RegisterAdminRoutes(
 		// 运维监控（Ops）
 		registerOpsRoutes(admin, h)
 
+		// Token 风险审查
+		registerTokenRiskRoutes(admin, h)
+
 		// 系统管理
 		registerSystemRoutes(admin, h)
 
@@ -111,6 +114,20 @@ func registerContentModerationRoutes(admin *gin.RouterGroup, h *handler.Handlers
 		risk.POST("/users/:user_id/unban", h.Admin.ContentModeration.UnbanUser)
 		risk.DELETE("/hashes", h.Admin.ContentModeration.DeleteFlaggedHash)
 		risk.DELETE("/hashes/all", h.Admin.ContentModeration.ClearFlaggedHashes)
+	}
+}
+
+func registerTokenRiskRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	risks := admin.Group("/token-risks")
+	{
+		risks.GET("/summary", h.Admin.Ops.TokenRiskSummary)
+		risks.GET("/events", h.Admin.Ops.ListTokenRiskEvents)
+		risks.GET("/events/:id", h.Admin.Ops.GetTokenRiskEvent)
+		risks.POST("/events/:id/actions", h.Admin.Ops.CreateTokenRiskAction)
+		risks.GET("/watchlist", h.Admin.Ops.ListTokenRiskWatchlist)
+		risks.POST("/watchlist", h.Admin.Ops.CreateTokenRiskWatchlist)
+		risks.DELETE("/watchlist/:id", h.Admin.Ops.DeleteTokenRiskWatchlist)
+		risks.POST("/backfill", h.Admin.Ops.BackfillTokenRisks)
 	}
 }
 
