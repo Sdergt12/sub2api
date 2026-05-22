@@ -15,10 +15,14 @@ import {
 import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
 
 export const useAppStore = defineStore('app', () => {
+  type UIMode = 'official' | 'gundam'
+  const uiModeStorageKey = 'sub2api_ui_mode'
+
   // ==================== State ====================
 
   const sidebarCollapsed = ref<boolean>(false)
   const mobileOpen = ref<boolean>(false)
+  const uiMode = ref<UIMode>('official')
   const loading = ref<boolean>(false)
   const toasts = ref<Toast[]>([])
 
@@ -53,6 +57,32 @@ export const useAppStore = defineStore('app', () => {
   const loadingCount = ref<number>(0)
 
   // ==================== Actions ====================
+
+  function normalizeUIMode(value: unknown): UIMode {
+    return value === 'gundam' ? 'gundam' : 'official'
+  }
+
+  function setUIMode(mode: UIMode): void {
+    const nextMode = normalizeUIMode(mode)
+    uiMode.value = nextMode
+    if (typeof document !== 'undefined') {
+      document.documentElement.dataset.uiMode = nextMode
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(uiModeStorageKey, nextMode)
+    }
+  }
+
+  function toggleUIMode(): void {
+    setUIMode(uiMode.value === 'gundam' ? 'official' : 'gundam')
+  }
+
+  function initUIMode(): void {
+    if (typeof localStorage === 'undefined') {
+      return
+    }
+    setUIMode(normalizeUIMode(localStorage.getItem(uiModeStorageKey)))
+  }
 
   /**
    * Toggle sidebar collapsed state
@@ -227,6 +257,7 @@ export const useAppStore = defineStore('app', () => {
    */
   function reset(): void {
     sidebarCollapsed.value = false
+    uiMode.value = 'official'
     loading.value = false
     loadingCount.value = 0
     toasts.value = []
@@ -407,6 +438,7 @@ export const useAppStore = defineStore('app', () => {
     // State
     sidebarCollapsed,
     mobileOpen,
+    uiMode,
     loading,
     toasts,
 
@@ -435,6 +467,9 @@ export const useAppStore = defineStore('app', () => {
 
     // Actions
     toggleSidebar,
+    setUIMode,
+    toggleUIMode,
+    initUIMode,
     setSidebarCollapsed,
     toggleMobileSidebar,
     setMobileOpen,
