@@ -163,7 +163,7 @@
         :title="sidebarCollapsed ? currentUIModeLabel : undefined"
       >
         <span class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border border-current text-[10px] font-black">
-          {{ uiMode === 'gundam' ? 'G' : 'O' }}
+          {{ uiMode === 'gundam' ? 'G' : uiMode === 'gundam-lite' ? 'GL' : 'O' }}
         </span>
         <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
           {{ currentUIModeLabel }}
@@ -253,9 +253,11 @@ const mobileOpen = computed(() => appStore.mobileOpen)
 const isAdmin = computed(() => authStore.isAdmin)
 const isDark = ref(document.documentElement.classList.contains('dark'))
 const uiMode = computed(() => appStore.uiMode)
-const currentUIModeLabel = computed(() =>
-  uiMode.value === 'gundam' ? t('nav.gundamMode') : t('nav.officialMode')
-)
+const currentUIModeLabel = computed(() => {
+  if (uiMode.value === 'gundam') return t('nav.gundamMode')
+  if (uiMode.value === 'gundam-lite') return t('nav.gundamLiteMode')
+  return t('nav.officialMode')
+})
 
 // Track which parent nav groups are expanded
 const expandedGroups = ref<Set<string>>(new Set())
@@ -754,6 +756,7 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
     { path: '/admin/token-audit', label: t('nav.tokenAudit'), icon: KeyIcon },
+    { path: '/admin/format-converter', label: t('nav.formatConverter'), icon: TicketIcon, hideInSimpleMode: true },
     { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
     { path: '/admin/risk-control', label: t('nav.riskControl'), icon: ShieldIcon, hideInSimpleMode: true, featureFlag: flagRiskControl },
     { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },

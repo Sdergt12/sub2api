@@ -15,7 +15,7 @@ import {
 import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
 
 export const useAppStore = defineStore('app', () => {
-  type UIMode = 'official' | 'gundam'
+  type UIMode = 'official' | 'gundam' | 'gundam-lite'
   const uiModeStorageKey = 'sub2api_ui_mode'
 
   // ==================== State ====================
@@ -59,7 +59,8 @@ export const useAppStore = defineStore('app', () => {
   // ==================== Actions ====================
 
   function normalizeUIMode(value: unknown): UIMode {
-    return value === 'gundam' ? 'gundam' : 'official'
+    if (value === 'gundam' || value === 'gundam-lite') return value
+    return 'official'
   }
 
   function setUIMode(mode: UIMode): void {
@@ -74,7 +75,15 @@ export const useAppStore = defineStore('app', () => {
   }
 
   function toggleUIMode(): void {
-    setUIMode(uiMode.value === 'gundam' ? 'official' : 'gundam')
+    if (uiMode.value === 'official') {
+      setUIMode('gundam')
+      return
+    }
+    if (uiMode.value === 'gundam') {
+      setUIMode('gundam-lite')
+      return
+    }
+    setUIMode('official')
   }
 
   function initUIMode(): void {

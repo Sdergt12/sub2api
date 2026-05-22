@@ -53,6 +53,41 @@
           </div>
         </div>
 
+        <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <div class="card p-4 xl:col-span-2">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Token 风险总览</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">近 24 小时 token/API key 滥用检测、越权、embedded 绕过和高频异常。</p>
+              </div>
+              <RouterLink to="/admin/token-audit" class="btn btn-secondary btn-sm">进入 Token 审查</RouterLink>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div v-for="item in tokenRiskCards" :key="item.key" class="rounded-xl bg-gray-50 p-3 dark:bg-dark-700/50">
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ item.label }}</p>
+                <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ item.value }}</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ item.meta }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">高风险分类</h2>
+            <div class="mt-4 space-y-3">
+              <div v-for="item in tokenRiskCategories" :key="item.name">
+                <div class="mb-1 flex justify-between text-sm">
+                  <span class="font-medium text-gray-700 dark:text-gray-200">{{ item.name }}</span>
+                  <span class="text-gray-500">{{ item.count }}</span>
+                </div>
+                <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
+                  <div class="h-full rounded-full bg-red-500" :style="{ width: `${item.percent}%` }"></div>
+                </div>
+              </div>
+              <div v-if="tokenRiskCategories.length === 0" class="py-6 text-center text-sm text-gray-500">暂无 Token 风险分类</div>
+            </div>
+          </div>
+        </div>
+
         <div class="card">
           <div class="flex flex-col gap-4 border-b border-gray-100 px-6 py-4 dark:border-dark-700 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -888,6 +923,7 @@ import Select from '@/components/common/Select.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { adminAPI } from '@/api/admin'
+import tokenRiskAPI, { type TokenRiskSummary } from '@/api/admin/tokenRisk'
 import type {
   ContentModerationAPIKeyStatus,
   ContentModerationConfig,
@@ -946,6 +982,7 @@ const flaggedHashInput = ref('')
 const groups = ref<AdminGroup[]>([])
 const logs = ref<ContentModerationLog[]>([])
 const status = ref<ContentModerationRuntimeStatus | null>(null)
+const tokenRiskSummary = ref<TokenRiskSummary | null>(null)
 const testedApiKeyStatuses = ref<ContentModerationAPIKeyStatus[]>([])
 const pendingDeleteApiKeyHashes = ref<string[]>([])
 const apiKeyRowsExpanded = ref<boolean>(false)
@@ -1252,6 +1289,25 @@ const overviewItems = computed<OverviewItem[]>(() => [
   },
 ])
 
+const tokenRiskCards = computed(() => {
+  const data = tokenRiskSummary.value
+  return [
+    { key: 'total', label: '风险事件', value: data?.total ?? 0, meta: '全部检测事件' },
+    { key: 'open', label: '待处理', value: data?.open ?? 0, meta: '需要管理员处置' },
+    { key: 'critical', label: 'Critical', value: data?.critical ?? 0, meta: '立即关注' },
+    { key: 'apiKeys', label: '异常 API Key', value: data?.distinct_api_keys ?? 0, meta: '疑似共享/滥用' },
+  ]
+})
+
+const tokenRiskCategories = computed(() => {
+  const data = tokenRiskSummary.value?.by_category || {}
+  const max = Math.max(1, ...Object.values(data))
+  return Object.entries(data)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([name, count]) => ({ name, count, percent: Math.max(4, Math.round((count / max) * 100)) }))
+})
+
 const moderationScoreRows = computed<ModerationScoreRow[]>(() => {
   const result = moderationTestResult.value
   if (!result) return []
@@ -1345,8 +1401,8 @@ function applyConfig(config: ContentModerationConfig) {
 }
 
 async function loadAll() {
-  loading.value = true
-  try {
+	loading.value = true
+	try {
     const [config, groupItems, runtimeStatus] = await Promise.all([
       adminAPI.riskControl.getConfig(),
       adminAPI.groups.getAll(),
@@ -1358,12 +1414,13 @@ async function loadAll() {
     if (Array.isArray(runtimeStatus.api_key_statuses)) {
       configForm.api_key_statuses = [...runtimeStatus.api_key_statuses]
       prunePendingDeleteAPIKeyHashes()
-    }
-    await loadLogs()
+	}
+	await loadLogs()
+	await loadTokenRiskSummary()
   } catch (err: unknown) {
-    appStore.showError(extractApiErrorMessage(err, t('admin.riskControl.loadFailed')))
+	appStore.showError(extractApiErrorMessage(err, t('admin.riskControl.loadFailed')))
   } finally {
-    loading.value = false
+	loading.value = false
   }
 }
 
@@ -1382,6 +1439,15 @@ async function loadStatus(silent = true) {
     }
   } finally {
     statusLoading.value = false
+  }
+}
+
+async function loadTokenRiskSummary() {
+  try {
+    tokenRiskSummary.value = await tokenRiskAPI.getSummary('24h')
+  } catch (error) {
+    // Token 风险摘要是增强信息，失败不阻断风控中心主流程。
+    console.warn('[risk-control] token risk summary unavailable', error)
   }
 }
 

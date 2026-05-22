@@ -734,6 +734,92 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 	return tokenPair, user, nil
 }
 
+func (s *AuthService) LoginOrRegisterLinuxDoSyntheticWithTokenPair(ctx context.Context, email, username string) (*TokenPair, *User, error) {
+	if s == nil || s.userRepo == nil {
+		return nil, nil, ErrServiceUnavailable
+	}
+	if s.refreshTokenCache == nil {
+		return nil, nil, errors.New("refresh token cache not configured")
+	}
+	email = strings.TrimSpace(email)
+	if email == "" || !strings.HasSuffix(strings.ToLower(email), LinuxDoConnectSyntheticEmailDomain) {
+		return nil, nil, infraerrors.BadRequest("INVALID_EMAIL", "invalid linuxdo synthetic email")
+	}
+	if _, err := mail.ParseAddress(email); err != nil {
+		return nil, nil, infraerrors.BadRequest("INVALID_EMAIL", "invalid email")
+	}
+	username = strings.TrimSpace(username)
+	if len([]rune(username)) > 100 {
+		username = string([]rune(username)[:100])
+	}
+	if username == "" {
+		username = "linuxdo-user"
+	}
+
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		if !errors.Is(err, ErrUserNotFound) {
+			logger.LegacyPrintf("service.auth", "[Auth] Database error during linuxdo synthetic login: %v", err)
+			return nil, nil, ErrServiceUnavailable
+		}
+		if s.settingService == nil || (!s.settingService.IsRegistrationEnabled(ctx) && !s.canBypassRegistrationDisabledForOAuth(ctx, "linuxdo")) {
+			return nil, nil, ErrRegDisabled
+		}
+		randomPassword, err := randomHexString(32)
+		if err != nil {
+			return nil, nil, ErrServiceUnavailable
+		}
+		hashedPassword, err := s.HashPassword(randomPassword)
+		if err != nil {
+			return nil, nil, fmt.Errorf("hash password: %w", err)
+		}
+		grantPlan := s.resolveSignupGrantPlan(ctx, "linuxdo")
+		var defaultRPMLimit int
+		if s.settingService != nil {
+			defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
+		}
+		user = &User{
+			Email:        email,
+			Username:     username,
+			PasswordHash: hashedPassword,
+			Role:         RoleUser,
+			Balance:      grantPlan.Balance,
+			Concurrency:  grantPlan.Concurrency,
+			RPMLimit:     defaultRPMLimit,
+			Status:       StatusActive,
+			SignupSource: "linuxdo",
+		}
+		if err := s.userRepo.Create(ctx, user); err != nil {
+			if errors.Is(err, ErrEmailExists) {
+				user, err = s.userRepo.GetByEmail(ctx, email)
+				if err != nil {
+					return nil, nil, ErrServiceUnavailable
+				}
+			} else {
+				logger.LegacyPrintf("service.auth", "[Auth] Database error creating linuxdo synthetic user: %v", err)
+				return nil, nil, ErrServiceUnavailable
+			}
+		} else {
+			s.postAuthUserBootstrap(ctx, user, "linuxdo", false)
+			s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by linuxdo synthetic signup")
+		}
+	}
+	if !user.IsActive() {
+		return nil, nil, ErrUserNotActive
+	}
+	if user.Username == "" && username != "" {
+		user.Username = username
+		if err := s.userRepo.Update(ctx, user); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to update username after linuxdo synthetic login: %v", err)
+		}
+	}
+	tokenPair, err := s.GenerateTokenPair(ctx, user, "")
+	if err != nil {
+		return nil, nil, fmt.Errorf("generate token pair: %w", err)
+	}
+	return tokenPair, user, nil
+}
+
 func (s *AuthService) assignSubscriptions(ctx context.Context, userID int64, items []DefaultSubscriptionSetting, notes string) {
 	if s.settingService == nil || s.defaultSubAssigner == nil || userID <= 0 {
 		return
