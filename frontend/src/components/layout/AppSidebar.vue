@@ -155,6 +155,21 @@
         }}</span>
       </button>
 
+      <!-- UI Mode Toggle -->
+      <button
+        @click="toggleUIMode"
+        class="sidebar-link mb-2 w-full"
+        :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
+        :title="sidebarCollapsed ? currentUIModeLabel : undefined"
+      >
+        <span class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border border-current text-[10px] font-black">
+          {{ uiMode === 'gundam' ? 'G' : 'O' }}
+        </span>
+        <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
+          {{ currentUIModeLabel }}
+        </span>
+      </button>
+
       <!-- Collapse Button -->
       <button
         @click="toggleSidebar"
@@ -237,6 +252,10 @@ const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const mobileOpen = computed(() => appStore.mobileOpen)
 const isAdmin = computed(() => authStore.isAdmin)
 const isDark = ref(document.documentElement.classList.contains('dark'))
+const uiMode = computed(() => appStore.uiMode)
+const currentUIModeLabel = computed(() =>
+  uiMode.value === 'gundam' ? t('nav.gundamMode') : t('nav.officialMode')
+)
 
 // Track which parent nav groups are expanded
 const expandedGroups = ref<Set<string>>(new Set())
@@ -796,6 +815,10 @@ function toggleTheme() {
   isDark.value = !isDark.value
   document.documentElement.classList.toggle('dark', isDark.value)
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+}
+
+function toggleUIMode() {
+  appStore.toggleUIMode()
 }
 
 function closeMobile() {

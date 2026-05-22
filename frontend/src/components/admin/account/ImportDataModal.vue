@@ -17,15 +17,45 @@
       </div>
 
       <div>
+        <label class="input-label">{{ t('admin.accounts.dataImportMode') }}</label>
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            class="rounded-xl border px-4 py-3 text-left transition-colors"
+            :class="importMode === 'sub2api'
+              ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-200'
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-200 dark:hover:bg-dark-700'"
+            @click="setImportMode('sub2api')"
+          >
+            <div class="text-sm font-semibold">{{ t('admin.accounts.dataImportModeSub2api') }}</div>
+            <div class="mt-1 text-xs opacity-75">{{ t('admin.accounts.dataImportModeSub2apiHint') }}</div>
+          </button>
+          <button
+            type="button"
+            class="rounded-xl border px-4 py-3 text-left transition-colors"
+            :class="importMode === 'cpa'
+              ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-200'
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-200 dark:hover:bg-dark-700'"
+            @click="setImportMode('cpa')"
+          >
+            <div class="text-sm font-semibold">{{ t('admin.accounts.dataImportModeCpa') }}</div>
+            <div class="mt-1 text-xs opacity-75">{{ t('admin.accounts.dataImportModeCpaHint') }}</div>
+          </button>
+        </div>
+      </div>
+
+      <div>
         <label class="input-label">{{ t('admin.accounts.dataImportFile') }}</label>
         <div
           class="flex items-center justify-between gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 dark:border-dark-600 dark:bg-dark-800"
         >
           <div class="min-w-0">
             <div class="truncate text-sm text-gray-700 dark:text-dark-200">
-              {{ fileName || t('admin.accounts.dataImportSelectFile') }}
+              {{ fileLabel || t('admin.accounts.dataImportSelectFile') }}
             </div>
-            <div class="text-xs text-gray-500 dark:text-dark-400">JSON (.json)</div>
+            <div class="text-xs text-gray-500 dark:text-dark-400">
+              {{ importMode === 'cpa' ? t('admin.accounts.dataImportMultiJsonHint') : 'JSON (.json)' }}
+            </div>
           </div>
           <button type="button" class="btn btn-secondary shrink-0" @click="openFilePicker">
             {{ t('common.chooseFile') }}
@@ -36,8 +66,47 @@
           type="file"
           class="hidden"
           accept="application/json,.json"
+          :multiple="importMode === 'cpa'"
           @change="handleFileChange"
         />
+      </div>
+
+      <div v-if="importMode === 'cpa'" class="grid grid-cols-1 gap-4 rounded-xl border border-gray-200 p-4 dark:border-dark-700 md:grid-cols-2">
+        <div>
+          <label class="input-label">{{ t('admin.accounts.cpaPlatform') }}</label>
+          <input v-model.trim="cpaOptions.platform" class="input" />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.accounts.cpaAccountType') }}</label>
+          <input v-model.trim="cpaOptions.accountType" class="input" />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.accounts.cpaConcurrency') }}</label>
+          <input v-model.number="cpaOptions.concurrency" type="number" min="0" class="input" />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.accounts.cpaPriority') }}</label>
+          <input v-model.number="cpaOptions.priority" type="number" min="0" class="input" />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.accounts.cpaNameSource') }}</label>
+          <select v-model="cpaOptions.nameSource" class="input">
+            <option value="email">{{ t('admin.accounts.cpaNameSourceEmail') }}</option>
+            <option value="filename">{{ t('admin.accounts.cpaNameSourceFilename') }}</option>
+            <option value="index">{{ t('admin.accounts.cpaNameSourceIndex') }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.accounts.cpaNamePrefix') }}</label>
+          <input v-model.trim="cpaOptions.namePrefix" class="input" />
+        </div>
+      </div>
+
+      <div
+        v-if="cpaPreview"
+        class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200"
+      >
+        {{ t('admin.accounts.cpaPreview', cpaPreview) }}
       </div>
 
       <div
@@ -85,12 +154,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import type { AdminDataImportResult } from '@/types'
+import { buildSub2APIDataFromCPA, type CPANameSource } from '@/utils/cpaImport'
+import type { AdminDataImportResult, AdminDataPayload } from '@/types'
 
 interface Props {
   show: boolean
@@ -107,12 +177,28 @@ const emit = defineEmits<Emits>()
 const { t } = useI18n()
 const appStore = useAppStore()
 
+type ImportMode = 'sub2api' | 'cpa'
+
 const importing = ref(false)
-const file = ref<File | null>(null)
+const importMode = ref<ImportMode>('sub2api')
+const files = ref<File[]>([])
 const result = ref<AdminDataImportResult | null>(null)
+const cpaPreview = ref<{ files: number; accounts: number; name_source: string } | null>(null)
+const cpaOptions = reactive({
+  platform: 'openai',
+  accountType: 'oauth',
+  concurrency: 3,
+  priority: 50,
+  nameSource: 'email' as CPANameSource,
+  namePrefix: 'acc',
+})
 
 const fileInput = ref<HTMLInputElement | null>(null)
-const fileName = computed(() => file.value?.name || '')
+const fileLabel = computed(() => {
+  if (files.value.length === 0) return ''
+  if (files.value.length === 1) return files.value[0].name
+  return t('admin.accounts.dataImportSelectedFiles', { count: files.value.length })
+})
 
 const errorItems = computed(() => result.value?.errors || [])
 
@@ -120,8 +206,9 @@ watch(
   () => props.show,
   (open) => {
     if (open) {
-      file.value = null
+      files.value = []
       result.value = null
+      cpaPreview.value = null
       if (fileInput.value) {
         fileInput.value.value = ''
       }
@@ -133,9 +220,21 @@ const openFilePicker = () => {
   fileInput.value?.click()
 }
 
+const setImportMode = (mode: ImportMode) => {
+  importMode.value = mode
+  files.value = []
+  result.value = null
+  cpaPreview.value = null
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement
-  file.value = target.files?.[0] || null
+  files.value = Array.from(target.files || [])
+  result.value = null
+  cpaPreview.value = null
 }
 
 const handleClose = () => {
@@ -161,16 +260,49 @@ const readFileAsText = async (sourceFile: File): Promise<string> => {
   })
 }
 
+const parseCPAFiles = async (): Promise<AdminDataPayload> => {
+  const parsedFiles = []
+  for (const item of files.value) {
+    const text = await readFileAsText(item)
+    parsedFiles.push({
+      filename: item.name,
+      data: JSON.parse(text),
+    })
+  }
+
+  const payload = buildSub2APIDataFromCPA(parsedFiles, {
+    platform: cpaOptions.platform,
+    accountType: cpaOptions.accountType,
+    concurrency: Number(cpaOptions.concurrency),
+    priority: Number(cpaOptions.priority),
+    nameSource: cpaOptions.nameSource,
+    namePrefix: cpaOptions.namePrefix,
+  })
+
+  // CPA token 文件结构不属于系统导出格式，转换后只走现有导入契约。
+  cpaPreview.value = {
+    files: files.value.length,
+    accounts: payload.accounts.length,
+    name_source: cpaOptions.nameSource,
+  }
+  return payload as AdminDataPayload
+}
+
 const handleImport = async () => {
-  if (!file.value) {
+  if (files.value.length === 0) {
     appStore.showError(t('admin.accounts.dataImportSelectFile'))
     return
   }
 
   importing.value = true
   try {
-    const text = await readFileAsText(file.value)
-    const dataPayload = JSON.parse(text)
+    let dataPayload: AdminDataPayload
+    if (importMode.value === 'cpa') {
+      dataPayload = await parseCPAFiles()
+    } else {
+      const text = await readFileAsText(files.value[0])
+      dataPayload = JSON.parse(text)
+    }
 
     const res = await adminAPI.accounts.importData({
       data: dataPayload,

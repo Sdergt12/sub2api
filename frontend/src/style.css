@@ -734,6 +734,103 @@
   }
 }
 
+@layer components {
+  [data-ui-mode='gundam'] body {
+    background:
+      radial-gradient(circle at 18% 10%, rgba(37, 99, 235, 0.14), transparent 28rem),
+      radial-gradient(circle at 88% 4%, rgba(234, 179, 8, 0.14), transparent 22rem),
+      linear-gradient(135deg, #f8fbff 0%, #eef4fb 46%, #ffffff 100%);
+  }
+
+  [data-ui-mode='gundam'].dark body {
+    background:
+      radial-gradient(circle at 18% 10%, rgba(59, 130, 246, 0.24), transparent 30rem),
+      radial-gradient(circle at 88% 4%, rgba(239, 68, 68, 0.18), transparent 24rem),
+      linear-gradient(135deg, #07111f 0%, #0b1628 52%, #101827 100%);
+  }
+
+  [data-ui-mode='gundam'] .sidebar {
+    @apply border-blue-200 bg-white/95 shadow-xl dark:border-blue-900/60 dark:bg-slate-950/95;
+    background-image:
+      linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 34%),
+      repeating-linear-gradient(0deg, transparent 0 22px, rgba(37, 99, 235, 0.05) 22px 23px);
+  }
+
+  [data-ui-mode='gundam'] .sidebar-header {
+    @apply border-blue-100 dark:border-blue-900/60;
+  }
+
+  [data-ui-mode='gundam'] .sidebar-logo {
+    @apply rounded-md border border-blue-300 bg-white shadow-none dark:border-blue-700 dark:bg-slate-900;
+    clip-path: polygon(10% 0, 100% 0, 100% 76%, 84% 100%, 0 100%, 0 18%);
+  }
+
+  [data-ui-mode='gundam'] .sidebar-link {
+    @apply rounded-md border border-transparent;
+  }
+
+  [data-ui-mode='gundam'] .sidebar-link:hover {
+    @apply border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/70 dark:bg-blue-950/40 dark:text-blue-200;
+  }
+
+  [data-ui-mode='gundam'] .sidebar-link-active {
+    @apply border-blue-400 bg-blue-600 text-white shadow-none hover:bg-blue-700 dark:border-blue-400 dark:bg-blue-600 dark:text-white;
+    box-shadow: inset 3px 0 0 #facc15, 0 0 0 1px rgba(239, 68, 68, 0.18);
+  }
+
+  [data-ui-mode='gundam'] .card,
+  [data-ui-mode='gundam'] .glass-card,
+  [data-ui-mode='gundam'] .card-glass,
+  [data-ui-mode='gundam'] .dialog-container,
+  [data-ui-mode='gundam'] .modal-content {
+    @apply rounded-lg border-blue-200 bg-white/90 shadow-none dark:border-blue-900/70 dark:bg-slate-900/90;
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+  }
+
+  [data-ui-mode='gundam'] .btn {
+    @apply rounded-md font-bold uppercase tracking-wide;
+  }
+
+  [data-ui-mode='gundam'] .btn-primary {
+    @apply from-blue-600 to-blue-700 shadow-none hover:from-blue-700 hover:to-blue-800;
+    box-shadow: inset 0 -3px 0 rgba(250, 204, 21, 0.75);
+  }
+
+  [data-ui-mode='gundam'] .btn-secondary {
+    @apply border-blue-200 bg-white text-blue-800 hover:border-blue-300 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-100 dark:hover:bg-blue-950/60;
+  }
+
+  [data-ui-mode='gundam'] .input,
+  [data-ui-mode='gundam'] select.input {
+    @apply rounded-md border-blue-200 bg-white/95 focus:border-blue-500 focus:ring-blue-500/30 dark:border-blue-800 dark:bg-slate-950/80;
+  }
+
+  [data-ui-mode='gundam'] .table-container {
+    @apply rounded-lg border-blue-200 dark:border-blue-900/70;
+  }
+
+  [data-ui-mode='gundam'] .table th {
+    @apply bg-blue-50 text-blue-900 dark:bg-blue-950/50 dark:text-blue-100;
+  }
+
+  [data-ui-mode='gundam'] .table tbody tr:hover {
+    @apply bg-blue-50/70 dark:bg-blue-950/30;
+  }
+
+  [data-ui-mode='gundam'] .page-title {
+    @apply tracking-tight text-blue-950 dark:text-blue-50;
+  }
+
+  [data-ui-mode='gundam'] .badge-primary {
+    @apply bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200;
+  }
+
+  [data-ui-mode='gundam'] .dropdown {
+    @apply rounded-lg border-blue-200 dark:border-blue-900/70;
+  }
+}
+
 @layer utilities {
   /* 文字渐变 */
   .text-gradient {

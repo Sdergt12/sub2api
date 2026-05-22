@@ -14,9 +14,15 @@ function initThemeClass() {
   document.documentElement.classList.toggle('dark', shouldUseDark)
 }
 
+function initUIModeClass() {
+  const savedMode = localStorage.getItem('sub2api_ui_mode')
+  document.documentElement.dataset.uiMode = savedMode === 'gundam' ? 'gundam' : 'official'
+}
+
 async function bootstrap() {
   // Apply theme class globally before app mount to keep all routes consistent.
   initThemeClass()
+  initUIModeClass()
 
   const app = createApp(App)
   const pinia = createPinia()
@@ -25,6 +31,7 @@ async function bootstrap() {
   // Initialize settings from injected config BEFORE mounting (prevents flash)
   // This must happen after pinia is installed but before router and i18n
   const appStore = useAppStore()
+  appStore.initUIMode()
   appStore.initFromInjectedConfig()
 
   // Set document title immediately after config is loaded
