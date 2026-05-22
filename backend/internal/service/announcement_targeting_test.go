@@ -64,3 +64,39 @@ func TestAnnouncementTargeting_Matches_AndOrSemantics(t *testing.T) {
 	require.False(t, targeting.Matches(99.9, map[int64]struct{}{10: {}}))
 	require.True(t, targeting.Matches(100, map[int64]struct{}{10: {}}))
 }
+
+func TestAnnouncementTargeting_MatchesUser_DirectUserCondition(t *testing.T) {
+	targeting := AnnouncementTargeting{
+		AnyOf: []AnnouncementConditionGroup{
+			{
+				AllOf: []AnnouncementCondition{
+					{
+						Type:     AnnouncementConditionTypeUser,
+						Operator: AnnouncementOperatorIn,
+						UserIDs:  []int64{7},
+					},
+				},
+			},
+		},
+	}
+
+	require.True(t, targeting.MatchesUser(7, 0, nil))
+	require.False(t, targeting.MatchesUser(8, 0, nil))
+	require.False(t, targeting.Matches(0, nil))
+}
+
+func TestAnnouncementTargeting_NormalizeAndValidate_RejectsInvalidUserCondition(t *testing.T) {
+	targeting := AnnouncementTargeting{
+		AnyOf: []AnnouncementConditionGroup{
+			{
+				AllOf: []AnnouncementCondition{
+					{Type: AnnouncementConditionTypeUser, Operator: AnnouncementOperatorIn, UserIDs: []int64{0}},
+				},
+			},
+		},
+	}
+
+	_, err := targeting.NormalizeAndValidate()
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrAnnouncementInvalidTarget)
+}

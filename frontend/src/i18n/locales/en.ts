@@ -341,6 +341,7 @@ export default {
     proxies: 'Proxies',
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',
+    tokenAudit: 'Token Audit',
     promoCodes: 'Promo Codes',
     settings: 'Settings',
     myAccount: 'My Account',
@@ -1011,6 +1012,11 @@ export default {
       requestsShort: 'Req',
       tokensShort: 'Tok',
       failedToLoad: 'Failed to load dashboard statistics'
+    },
+
+    tokenAudit: {
+      title: 'Token Audit',
+      description: 'Review abnormal token and API key usage without exposing full secrets'
     },
 
     backup: {
@@ -3185,6 +3191,7 @@ export default {
       title: 'Announcements',
       description: 'Create announcements and target by conditions',
       createAnnouncement: 'Create Announcement',
+      sendDirect: 'Send Direct Notification',
       editAnnouncement: 'Edit Announcement',
       deleteAnnouncement: 'Delete Announcement',
       searchAnnouncements: 'Search announcements...',
@@ -3226,6 +3233,9 @@ export default {
         conditionType: 'Condition type',
         conditionSubscription: 'Subscription',
         conditionBalance: 'Balance',
+        targetUserId: 'Target User ID',
+        targetUserIdHint: 'Only this user will receive it. It reuses the user announcement bell and read status.',
+        directHint: 'Direct notifications become active immediately. Popup mode alerts the target user.',
         operator: 'Operator',
         balanceValue: 'Balance threshold',
         selectPackages: 'Select packages'
@@ -3238,6 +3248,7 @@ export default {
         eq: '='
       },
       targetingSummaryAll: 'All users',
+      targetingSummaryUser: 'User #{userId}',
       targetingSummaryCustom: 'Custom ({groups} groups)',
       timeImmediate: 'Immediate',
       timeNever: 'Never',
@@ -3250,7 +3261,10 @@ export default {
       failedToCreate: 'Failed to create announcement',
       failedToUpdate: 'Failed to update announcement',
       failedToDelete: 'Failed to delete announcement',
+      failedToSendDirect: 'Failed to send direct notification',
       failedToLoadReadStatus: 'Failed to load read status',
+      directSent: 'Direct notification sent',
+      invalidTargetUser: 'Enter a valid target user ID',
       deleteConfirm: 'Are you sure you want to delete this announcement? This action cannot be undone.'
     },
 

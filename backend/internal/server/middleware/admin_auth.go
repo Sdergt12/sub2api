@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// NewAdminAuthMiddleware 创建管理员认证中间件
+// NewAdminAuthMiddleware 创建管理员认证中间件。
 func NewAdminAuthMiddleware(
 	authService *service.AuthService,
 	userService *service.UserService,
@@ -20,47 +20,43 @@ func NewAdminAuthMiddleware(
 	return AdminAuthMiddleware(adminAuth(authService, userService, settingService))
 }
 
-// adminAuth 管理员认证中间件实现
-// 支持两种认证方式（通过不同的 header 区分）：
+// adminAuth 支持两类管理员认证：
 // 1. Admin API Key: x-api-key: <admin-api-key>
-// 2. JWT Token: Authorization: Bearer <jwt-token> (需要管理员角色)
+// 2. JWT Token: Authorization: Bearer <jwt-token>，且用户必须是管理员。
 func adminAuth(
 	authService *service.AuthService,
 	userService *service.UserService,
 	settingService *service.SettingService,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// WebSocket upgrade requests cannot set Authorization headers in browsers.
-		// For admin WebSocket endpoints (e.g. Ops realtime), allow passing the JWT via
-		// Sec-WebSocket-Protocol (subprotocol list) using a prefixed token item:
-		//   Sec-WebSocket-Protocol: sub2api-admin, jwt.<token>
 		if isWebSocketUpgradeRequest(c) {
 			if token := extractJWTFromWebSocketSubprotocol(c); token != "" {
 				if !validateJWTForAdmin(c, token, authService, userService) {
 					return
 				}
 				c.Next()
+				auditAdminAfterRequest(c, "admin_jwt", token, "websocket_jwt")
 				return
 			}
 		}
 
-		// 检查 x-api-key header（Admin API Key 认证）
 		apiKey := c.GetHeader("x-api-key")
 		if apiKey != "" {
 			if !validateAdminAPIKey(c, apiKey, settingService, userService) {
 				return
 			}
 			c.Next()
+			auditAdminAfterRequest(c, "admin_api_key", apiKey, "admin_api_key")
 			return
 		}
 
-		// 检查 Authorization header（JWT 认证）
 		authHeader := c.GetHeader("Authorization")
 		if authHeader != "" {
 			parts := strings.SplitN(authHeader, " ", 2)
 			if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
 				token := strings.TrimSpace(parts[1])
 				if token == "" {
+					writeTokenAudit(c, tokenAuditEvent{TokenType: "admin_jwt", Result: "denied", RiskLevel: "high", Rule: "empty_admin_jwt", FailureReason: "empty_admin_jwt", StatusCode: 401})
 					AbortWithError(c, 401, "UNAUTHORIZED", "Authorization required")
 					return
 				}
@@ -68,11 +64,12 @@ func adminAuth(
 					return
 				}
 				c.Next()
+				auditAdminAfterRequest(c, "admin_jwt", token, "jwt")
 				return
 			}
 		}
 
-		// 无有效认证信息
+		writeTokenAudit(c, tokenAuditEvent{TokenType: "admin", Result: "denied", RiskLevel: "high", Rule: "missing_admin_authorization", FailureReason: "missing_admin_authorization", StatusCode: 401})
 		AbortWithError(c, 401, "UNAUTHORIZED", "Authorization required")
 	}
 }
@@ -81,9 +78,6 @@ func isWebSocketUpgradeRequest(c *gin.Context) bool {
 	if c == nil || c.Request == nil {
 		return false
 	}
-	// RFC6455 handshake uses:
-	//   Connection: Upgrade
-	//   Upgrade: websocket
 	upgrade := strings.ToLower(strings.TrimSpace(c.GetHeader("Upgrade")))
 	if upgrade != "websocket" {
 		return false
@@ -101,8 +95,7 @@ func extractJWTFromWebSocketSubprotocol(c *gin.Context) string {
 		return ""
 	}
 
-	// The header is a comma-separated list of tokens. We reserve the prefix "jwt."
-	// for carrying the admin JWT.
+	// 浏览器 WebSocket 不能设置 Authorization，这里保留 jwt.<token> 子协议兼容。
 	for _, part := range strings.Split(raw, ",") {
 		p := strings.TrimSpace(part)
 		if strings.HasPrefix(p, "jwt.") {
@@ -115,7 +108,6 @@ func extractJWTFromWebSocketSubprotocol(c *gin.Context) string {
 	return ""
 }
 
-// validateAdminAPIKey 验证管理员 API Key
 func validateAdminAPIKey(
 	c *gin.Context,
 	key string,
@@ -124,19 +116,21 @@ func validateAdminAPIKey(
 ) bool {
 	storedKey, err := settingService.GetAdminAPIKey(c.Request.Context())
 	if err != nil {
+		writeTokenAudit(c, tokenAuditEvent{TokenType: "admin_api_key", Token: key, Result: "denied", RiskLevel: "high", Rule: "admin_key_lookup_failed", FailureReason: "admin_key_lookup_failed", StatusCode: 500})
 		AbortWithError(c, 500, "INTERNAL_ERROR", "Internal server error")
 		return false
 	}
 
-	// 未配置或不匹配，统一返回相同错误（避免信息泄露）
+	// 失败时统一返回，避免暴露是否配置了管理员 API Key。
 	if storedKey == "" || subtle.ConstantTimeCompare([]byte(key), []byte(storedKey)) != 1 {
+		writeTokenAudit(c, tokenAuditEvent{TokenType: "admin_api_key", Token: key, Result: "denied", RiskLevel: "critical", Rule: "invalid_admin_api_key", FailureReason: "invalid_admin_api_key", StatusCode: 401})
 		AbortWithError(c, 401, "INVALID_ADMIN_KEY", "Invalid admin API key")
 		return false
 	}
 
-	// 获取真实的管理员用户
 	admin, err := userService.GetFirstAdmin(c.Request.Context())
 	if err != nil {
+		writeTokenAudit(c, tokenAuditEvent{TokenType: "admin_api_key", Token: key, Result: "denied", RiskLevel: "high", Rule: "admin_user_not_found", FailureReason: "admin_user_not_found", StatusCode: 500})
 		AbortWithError(c, 500, "INTERNAL_ERROR", "No admin user found")
 		return false
 	}
@@ -150,45 +144,45 @@ func validateAdminAPIKey(
 	return true
 }
 
-// validateJWTForAdmin 验证 JWT 并检查管理员权限
 func validateJWTForAdmin(
 	c *gin.Context,
 	token string,
 	authService *service.AuthService,
 	userService *service.UserService,
 ) bool {
-	// 验证 JWT token
 	claims, err := authService.ValidateToken(token)
 	if err != nil {
 		if errors.Is(err, service.ErrTokenExpired) {
+			writeTokenAudit(c, tokenAuditEvent{TokenType: "admin_jwt", Token: token, Result: "denied", RiskLevel: "high", Rule: "admin_token_expired", FailureReason: "token_expired", StatusCode: 401})
 			AbortWithError(c, 401, "TOKEN_EXPIRED", "Token has expired")
 			return false
 		}
+		writeTokenAudit(c, tokenAuditEvent{TokenType: "admin_jwt", Token: token, Result: "denied", RiskLevel: "critical", Rule: "invalid_admin_jwt", FailureReason: "invalid_token", StatusCode: 401})
 		AbortWithError(c, 401, "INVALID_TOKEN", "Invalid token")
 		return false
 	}
 
-	// 从数据库获取用户
 	user, err := userService.GetByID(c.Request.Context(), claims.UserID)
 	if err != nil {
+		writeTokenAudit(c, tokenAuditEvent{TokenType: "admin_jwt", Token: token, UserID: claims.UserID, Result: "denied", RiskLevel: "high", Rule: "admin_user_not_found", FailureReason: "user_not_found", StatusCode: 401})
 		AbortWithError(c, 401, "USER_NOT_FOUND", "User not found")
 		return false
 	}
 
-	// 检查用户状态
 	if !user.IsActive() {
+		writeTokenAudit(c, tokenAuditEvent{TokenType: "admin_jwt", Token: token, UserID: user.ID, Result: "denied", RiskLevel: "high", Rule: "admin_user_inactive", FailureReason: "user_inactive", StatusCode: 401})
 		AbortWithError(c, 401, "USER_INACTIVE", "User account is not active")
 		return false
 	}
 
-	// 校验 TokenVersion，确保管理员改密后旧 token 失效
 	if claims.TokenVersion != user.TokenVersion {
+		writeTokenAudit(c, tokenAuditEvent{TokenType: "admin_jwt", Token: token, UserID: user.ID, Result: "denied", RiskLevel: "high", Rule: "admin_token_revoked", FailureReason: "token_version_mismatch", StatusCode: 401})
 		AbortWithError(c, 401, "TOKEN_REVOKED", "Token has been revoked (password changed)")
 		return false
 	}
 
-	// 检查管理员权限
 	if !user.IsAdmin() {
+		writeTokenAudit(c, tokenAuditEvent{TokenType: "admin_jwt", Token: token, UserID: user.ID, Result: "denied", RiskLevel: "critical", Rule: "non_admin_token_on_admin_route", FailureReason: "forbidden", StatusCode: 403})
 		AbortWithError(c, 403, "FORBIDDEN", "Admin access required")
 		return false
 	}

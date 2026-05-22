@@ -46,6 +46,28 @@ func TestBuildOpsSystemLogsWhere_WithClientRequestIDAndUserID(t *testing.T) {
 	}
 }
 
+func TestBuildOpsSystemLogsWhere_WithTokenAuditFilters(t *testing.T) {
+	filter := &service.OpsSystemLogFilter{
+		Component:           "audit.token",
+		TokenAuditRiskLevel: "critical",
+		TokenAuditTokenType: "admin_jwt",
+	}
+
+	where, args, hasConstraint := buildOpsSystemLogsWhere(filter)
+	if !hasConstraint {
+		t.Fatalf("expected hasConstraint=true")
+	}
+	if len(args) != 3 {
+		t.Fatalf("args len = %d, want 3", len(args))
+	}
+	if !contains(where, "COALESCE(l.extra->>'risk_level','') = $") {
+		t.Fatalf("where should include token audit risk_level condition: %s", where)
+	}
+	if !contains(where, "COALESCE(l.extra->>'token_type','') = $") {
+		t.Fatalf("where should include token audit token_type condition: %s", where)
+	}
+}
+
 func TestBuildOpsSystemLogsCleanupWhere_RequireConstraint(t *testing.T) {
 	where, args, hasConstraint := buildOpsSystemLogsCleanupWhere(&service.OpsSystemLogCleanupFilter{})
 	if hasConstraint {
