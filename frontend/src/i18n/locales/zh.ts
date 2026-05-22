@@ -366,6 +366,7 @@ export default {
     proxies: 'IP管理',
     redeemCodes: '兑换码',
     ops: '运维监控',
+    tokenAudit: 'Token 审查',
     promoCodes: '优惠码',
     settings: '系统设置',
     myAccount: '我的账户',
@@ -1432,6 +1433,11 @@ export default {
       systemSettings: '系统设置',
       configureSystem: '配置系统设置',
       failedToLoad: '加载仪表盘数据失败'
+    },
+
+    tokenAudit: {
+      title: 'Token 审查',
+      description: '审查异常 token 与 API key 使用，不暴露完整密钥'
     },
 
     backup: {
@@ -4387,6 +4393,7 @@ export default {
       title: '公告管理',
       description: '创建公告并按条件投放',
       createAnnouncement: '创建公告',
+      sendDirect: '发送单用户通知',
       editAnnouncement: '编辑公告',
       deleteAnnouncement: '删除公告',
       searchAnnouncements: '搜索公告...',
@@ -4428,6 +4435,9 @@ export default {
         conditionType: '条件类型',
         conditionSubscription: '订阅套餐',
         conditionBalance: '余额',
+        targetUserId: '目标用户 ID',
+        targetUserIdHint: '只会投递给该用户，并复用用户侧公告铃铛和已读状态。',
+        directHint: '单用户通知会立即生效，弹窗模式会提醒目标用户。',
         operator: '运算符',
         balanceValue: '余额阈值',
         selectPackages: '选择套餐'
@@ -4440,6 +4450,7 @@ export default {
         eq: '='
       },
       targetingSummaryAll: '全部用户',
+      targetingSummaryUser: '用户 #{userId}',
       targetingSummaryCustom: '自定义（{groups} 组）',
       timeImmediate: '立即',
       timeNever: '永久',
@@ -4452,7 +4463,10 @@ export default {
       failedToCreate: '创建公告失败',
       failedToUpdate: '更新公告失败',
       failedToDelete: '删除公告失败',
+      failedToSendDirect: '发送单用户通知失败',
       failedToLoadReadStatus: '加载已读情况失败',
+      directSent: '单用户通知已发送',
+      invalidTargetUser: '请输入有效的目标用户 ID',
       deleteConfirm: '确定要删除该公告吗？此操作无法撤销。'
     },
 

@@ -7,6 +7,7 @@ import type {
   Announcement,
   AnnouncementUserReadStatus,
   BasePaginationResponse,
+  CreateDirectAnnouncementRequest,
   CreateAnnouncementRequest,
   UpdateAnnouncementRequest
 } from '@/types'
@@ -38,6 +39,11 @@ export async function getById(id: number): Promise<Announcement> {
 
 export async function create(request: CreateAnnouncementRequest): Promise<Announcement> {
   const { data } = await apiClient.post<Announcement>('/admin/announcements', request)
+  return data
+}
+
+export async function createDirect(request: CreateDirectAnnouncementRequest): Promise<Announcement> {
+  const { data } = await apiClient.post<Announcement>('/admin/announcements/direct', request)
   return data
 }
 
@@ -78,6 +84,7 @@ const announcementsAPI = {
   list,
   getById,
   create,
+  createDirect,
   update,
   delete: deleteAnnouncement,
   getReadStatus
