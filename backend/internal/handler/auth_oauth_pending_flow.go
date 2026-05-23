@@ -307,6 +307,57 @@ func pendingOAuthCompletionCanIssueTokenPair(session *dbent.PendingAuthSession, 
 	return strings.TrimSpace(pendingSessionStringValue(payload, "step")) == ""
 }
 
+func (h *AuthHandler) recoverLinuxDoSyntheticPendingLogin(
+	ctx context.Context,
+	session *dbent.PendingAuthSession,
+	payload map[string]any,
+) (*dbent.PendingAuthSession, map[string]any, bool, error) {
+	if session == nil || !pendingSessionWantsInvitation(payload) {
+		return session, payload, false, nil
+	}
+	if !strings.EqualFold(strings.TrimSpace(session.ProviderType), "linuxdo") {
+		return session, payload, false, nil
+	}
+	if session.TargetUserID != nil && *session.TargetUserID > 0 {
+		return session, payload, false, nil
+	}
+	email := strings.TrimSpace(strings.ToLower(session.ResolvedEmail))
+	if email == "" || !strings.HasSuffix(email, service.LinuxDoConnectSyntheticEmailDomain) {
+		return session, payload, false, nil
+	}
+
+	client := h.entClient()
+	if client == nil {
+		return session, payload, false, infraerrors.ServiceUnavailable("PENDING_AUTH_NOT_READY", "pending auth service is not ready")
+	}
+	userEntity, err := findUserByNormalizedEmail(ctx, client, email)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			return session, payload, false, nil
+		}
+		return session, payload, false, err
+	}
+	if _, err := findActiveUserByID(ctx, client, userEntity.ID); err != nil {
+		return session, payload, false, err
+	}
+
+	recovered := clonePendingMap(payload)
+	delete(recovered, "error")
+	delete(recovered, "invitation_required")
+	delete(recovered, "choice_reason")
+	delete(recovered, "step")
+	delete(recovered, "adoption_required")
+	recovered["redirect"] = firstNonEmpty(pendingSessionStringValue(recovered, "redirect"), session.RedirectTo, linuxDoOAuthDefaultRedirectTo)
+
+	// 历史 synthetic 用户已存在时，应恢复为登录 pending session；
+	// 后续 exchange 会正常补写 auth_identities 并签发 token。
+	updated, err := updatePendingOAuthSessionProgress(ctx, client, session, oauthIntentLogin, userEntity.Email, &userEntity.ID, recovered)
+	if err != nil {
+		return session, payload, false, err
+	}
+	return updated, recovered, true, nil
+}
+
 func ensurePendingOAuthCompleteRegistrationSession(session *dbent.PendingAuthSession) error {
 	if session == nil {
 		return infraerrors.BadRequest("PENDING_AUTH_SESSION_INVALID", "pending auth registration context is invalid")
@@ -1881,6 +1932,14 @@ func (h *AuthHandler) ExchangePendingOAuthCompletion(c *gin.Context) {
 		}
 	}
 	applySuggestedProfileToCompletionResponse(payload, session.UpstreamIdentityClaims)
+	if convertedSession, convertedPayload, handled, err := h.recoverLinuxDoSyntheticPendingLogin(c.Request.Context(), session, payload); err != nil {
+		clearCookies()
+		response.ErrorFrom(c, err)
+		return
+	} else if handled {
+		session = convertedSession
+		payload = convertedPayload
+	}
 
 	canIssueTokenPair := pendingOAuthCompletionCanIssueTokenPair(session, payload)
 	var loginUser *service.User
