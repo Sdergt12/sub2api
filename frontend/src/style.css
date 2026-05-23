@@ -745,22 +745,32 @@
 
   [data-ui-mode='gundam'] body {
     background:
+      var(--sub2api-gundam-image-url, none),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420' viewBox='0 0 420 420'%3E%3Cg fill='none' stroke='%232563eb' stroke-opacity='.18' stroke-width='2'%3E%3Cpath d='M210 32l58 48 18 86 62 42-62 38-18 92H152l-18-92-62-38 62-42 18-86z'/%3E%3Cpath d='M151 124h118l-28 58h-62zM178 212h64l-12 80h-40zM126 246l-70 82M294 246l70 82M162 88l-50-40M258 88l50-40'/%3E%3C/g%3E%3C/svg%3E"),
       linear-gradient(rgba(37, 99, 235, 0.055) 1px, transparent 1px),
       linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px),
       radial-gradient(circle at 18% 10%, rgba(37, 99, 235, 0.14), transparent 28rem),
       radial-gradient(circle at 88% 4%, rgba(234, 179, 8, 0.14), transparent 22rem),
       linear-gradient(135deg, #f8fbff 0%, #eef4fb 46%, #ffffff 100%);
-    background-size: 28px 28px, 28px 28px, auto, auto, auto;
+    background-attachment: fixed, fixed, fixed, fixed, fixed, fixed, fixed;
+    background-position: right 2rem bottom 2rem, right 2rem bottom 2rem, 0 0, 0 0, center, center, center;
+    background-repeat: no-repeat, no-repeat, repeat, repeat, no-repeat, no-repeat, no-repeat;
+    background-size: min(48vw, 620px), min(48vw, 620px), 28px 28px, 28px 28px, auto, auto, auto;
   }
 
   [data-ui-mode='gundam'].dark body {
     background:
+      var(--sub2api-gundam-image-url, none),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420' viewBox='0 0 420 420'%3E%3Cg fill='none' stroke='%2393c5fd' stroke-opacity='.24' stroke-width='2'%3E%3Cpath d='M210 32l58 48 18 86 62 42-62 38-18 92H152l-18-92-62-38 62-42 18-86z'/%3E%3Cpath d='M151 124h118l-28 58h-62zM178 212h64l-12 80h-40zM126 246l-70 82M294 246l70 82M162 88l-50-40M258 88l50-40'/%3E%3C/g%3E%3C/svg%3E"),
       linear-gradient(rgba(59, 130, 246, 0.07) 1px, transparent 1px),
       linear-gradient(90deg, rgba(59, 130, 246, 0.07) 1px, transparent 1px),
       radial-gradient(circle at 18% 10%, rgba(59, 130, 246, 0.24), transparent 30rem),
       radial-gradient(circle at 88% 4%, rgba(239, 68, 68, 0.18), transparent 24rem),
       linear-gradient(135deg, #07111f 0%, #0b1628 52%, #101827 100%);
-    background-size: 28px 28px, 28px 28px, auto, auto, auto;
+    background-attachment: fixed, fixed, fixed, fixed, fixed, fixed, fixed;
+    background-position: right 2rem bottom 2rem, right 2rem bottom 2rem, 0 0, 0 0, center, center, center;
+    background-repeat: no-repeat, no-repeat, repeat, repeat, no-repeat, no-repeat, no-repeat;
+    background-size: min(48vw, 620px), min(48vw, 620px), 28px 28px, 28px 28px, auto, auto, auto;
   }
 
   [data-ui-mode='gundam-lite'] body {
@@ -811,6 +821,8 @@
   [data-ui-mode='gundam'] .dialog-container,
   [data-ui-mode='gundam'] .modal-content {
     @apply rounded-lg border-blue-200 bg-white/90 shadow-none dark:border-blue-900/70 dark:bg-slate-900/90;
+    position: relative;
+    overflow: hidden;
     clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
     box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(37, 99, 235, 0.08);
   }
@@ -900,6 +912,172 @@
     filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.35));
   }
 
+  [data-ui-mode='gundam'] .card h1::before,
+  [data-ui-mode='gundam'] .card h2::before {
+    content: '';
+    display: inline-block;
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-right: 0.45rem;
+    border-radius: 999px;
+    background: #22c55e;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.75);
+    vertical-align: 0.08rem;
+  }
+
+  .gundam-boot-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    color: #dbeafe;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.32), transparent 28rem),
+      radial-gradient(circle at 80% 20%, rgba(220, 38, 38, 0.22), transparent 24rem),
+      linear-gradient(135deg, rgba(3, 7, 18, 0.96), rgba(15, 23, 42, 0.98));
+    cursor: pointer;
+  }
+
+  .gundam-boot-grid {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(96, 165, 250, 0.14) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(96, 165, 250, 0.14) 1px, transparent 1px);
+    background-size: 36px 36px;
+    mask-image: radial-gradient(circle at center, black 0 55%, transparent 82%);
+  }
+
+  .gundam-boot-frame {
+    position: relative;
+    width: min(92vw, 760px);
+    min-height: 360px;
+    display: grid;
+    grid-template-columns: minmax(180px, 0.8fr) 1fr;
+    gap: 1.5rem;
+    align-items: center;
+    padding: clamp(1.25rem, 4vw, 2.5rem);
+    border: 1px solid rgba(147, 197, 253, 0.72);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.72));
+    clip-path: polygon(0 0, calc(100% - 34px) 0, 100% 34px, 100% 100%, 34px 100%, 0 calc(100% - 34px));
+    box-shadow: 0 0 42px rgba(37, 99, 235, 0.35), inset 0 0 0 1px rgba(250, 204, 21, 0.2);
+  }
+
+  .gundam-boot-corners::before,
+  .gundam-boot-corners::after {
+    content: '';
+    position: absolute;
+    width: 120px;
+    height: 10px;
+    background: linear-gradient(90deg, #2563eb, #facc15, #dc2626);
+  }
+
+  .gundam-boot-corners::before {
+    top: 16px;
+    left: 18px;
+  }
+
+  .gundam-boot-corners::after {
+    right: 18px;
+    bottom: 16px;
+    transform: rotate(180deg);
+  }
+
+  .gundam-boot-unit {
+    display: grid;
+    place-items: center;
+    min-height: 240px;
+    border: 1px solid rgba(96, 165, 250, 0.38);
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.16), transparent 64%);
+  }
+
+  .gundam-boot-unit-svg {
+    width: min(42vw, 260px);
+    max-width: 100%;
+    fill: rgba(96, 165, 250, 0.1);
+    stroke: rgba(219, 234, 254, 0.86);
+    stroke-width: 3;
+    filter: drop-shadow(0 0 18px rgba(96, 165, 250, 0.42));
+  }
+
+  .gundam-boot-kicker {
+    color: #facc15;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+  }
+
+  .gundam-boot-copy h2 {
+    margin-top: 0.5rem;
+    font-size: clamp(2.4rem, 8vw, 4.75rem);
+    font-weight: 950;
+    line-height: 0.9;
+    letter-spacing: -0.06em;
+  }
+
+  .gundam-boot-status {
+    margin-top: 0.75rem;
+    display: flex;
+    max-width: 320px;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(147, 197, 253, 0.24);
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+  }
+
+  .gundam-boot-status b {
+    color: #22c55e;
+  }
+
+  .gundam-boot-skip {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    border: 1px solid rgba(147, 197, 253, 0.5);
+    padding: 0.35rem 0.7rem;
+    color: #bfdbfe;
+    font-size: 0.78rem;
+  }
+
+  .gundam-boot-scan {
+    position: absolute;
+    inset: -20% 0;
+    background: linear-gradient(180deg, transparent 0 44%, rgba(96, 165, 250, 0.32) 50%, transparent 56%);
+    animation: gundam-boot-scan 1.55s ease-in-out both;
+  }
+
+  .gundam-boot-fade-enter-active,
+  .gundam-boot-fade-leave-active {
+    transition: opacity 0.22s ease;
+  }
+
+  .gundam-boot-fade-enter-from,
+  .gundam-boot-fade-leave-to {
+    opacity: 0;
+  }
+
+  @keyframes gundam-boot-scan {
+    from {
+      transform: translateY(-45%);
+    }
+    to {
+      transform: translateY(45%);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .gundam-boot-frame {
+      grid-template-columns: 1fr;
+      min-height: auto;
+    }
+
+    .gundam-boot-unit {
+      min-height: 180px;
+    }
+  }
+
   [data-ui-mode='gundam-lite'] .sidebar-link-active {
     @apply border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-100;
   }
@@ -929,6 +1107,11 @@
       transition-duration: 0.01ms !important;
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
+    }
+
+    .gundam-boot-scan {
+      animation: none;
+      opacity: 0.18;
     }
   }
 }

@@ -17,12 +17,14 @@ import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
 export const useAppStore = defineStore('app', () => {
   type UIMode = 'official' | 'gundam' | 'gundam-lite'
   const uiModeStorageKey = 'sub2api_ui_mode'
+  const gundamImageStorageKey = 'sub2api_gundam_image_url'
 
   // ==================== State ====================
 
   const sidebarCollapsed = ref<boolean>(false)
   const mobileOpen = ref<boolean>(false)
   const uiMode = ref<UIMode>('official')
+  const gundamBootNonce = ref<number>(0)
   const loading = ref<boolean>(false)
   const toasts = ref<Toast[]>([])
 
@@ -63,14 +65,40 @@ export const useAppStore = defineStore('app', () => {
     return 'official'
   }
 
+  function isEmbeddedRuntime(): boolean {
+    if (typeof window === 'undefined') return false
+    const params = new URLSearchParams(window.location.search)
+    return params.get('ui_mode') === 'embedded' || window.location.pathname.includes('/embed')
+  }
+
+  function applyGundamImageURL(value: unknown): void {
+    if (typeof document === 'undefined') return
+    const raw = typeof value === 'string' ? value.trim() : ''
+    if (!raw) {
+      document.documentElement.style.removeProperty('--sub2api-gundam-image-url')
+      return
+    }
+    try {
+      const url = new URL(raw)
+      if (url.protocol !== 'https:') throw new Error('only https urls are allowed')
+      document.documentElement.style.setProperty('--sub2api-gundam-image-url', `url("${url.href.replace(/"/g, '%22')}")`)
+    } catch {
+      document.documentElement.style.removeProperty('--sub2api-gundam-image-url')
+    }
+  }
+
   function setUIMode(mode: UIMode): void {
     const nextMode = normalizeUIMode(mode)
+    const previousMode = uiMode.value
     uiMode.value = nextMode
     if (typeof document !== 'undefined') {
       document.documentElement.dataset.uiMode = nextMode
     }
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(uiModeStorageKey, nextMode)
+    }
+    if (previousMode !== 'gundam' && nextMode === 'gundam' && !isEmbeddedRuntime()) {
+      gundamBootNonce.value += 1
     }
   }
 
@@ -90,6 +118,7 @@ export const useAppStore = defineStore('app', () => {
     if (typeof localStorage === 'undefined') {
       return
     }
+    applyGundamImageURL(localStorage.getItem(gundamImageStorageKey))
     setUIMode(normalizeUIMode(localStorage.getItem(uiModeStorageKey)))
   }
 
@@ -448,6 +477,7 @@ export const useAppStore = defineStore('app', () => {
     sidebarCollapsed,
     mobileOpen,
     uiMode,
+    gundamBootNonce,
     loading,
     toasts,
 
@@ -478,6 +508,7 @@ export const useAppStore = defineStore('app', () => {
     toggleSidebar,
     setUIMode,
     toggleUIMode,
+    applyGundamImageURL,
     initUIMode,
     setSidebarCollapsed,
     toggleMobileSidebar,
