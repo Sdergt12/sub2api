@@ -1225,6 +1225,677 @@
       opacity: 0.04;
     }
   }
+
+  /* ============ Gundam 军事整备终端增强层 ============ */
+  [data-ui-mode='gundam'] {
+    --gundam-armor: 231 233 237;
+    --gundam-armor-soft: 216 222 229;
+    --gundam-gunmetal: 16 22 31;
+    --gundam-gunmetal-soft: 27 36 49;
+    --gundam-terminal: 10 24 44;
+    --gundam-warning: 245 183 37;
+    --gundam-alert: 217 70 70;
+    --gundam-signal: 79 195 247;
+    --gundam-accent: 59 130 246;
+    --gundam-text: 15 23 42;
+  }
+
+  [data-ui-mode='gundam'] body {
+    color: rgb(var(--gundam-text));
+    background:
+      var(--sub2api-gundam-image-url, url('/assets/gundam/maintenance-bay.webp')),
+      linear-gradient(180deg, rgba(6, 10, 18, 0.68), rgba(6, 10, 18, 0.88)),
+      radial-gradient(circle at 16% 8%, rgba(255, 255, 255, 0.12), transparent 24rem),
+      radial-gradient(circle at 82% 14%, rgba(245, 183, 37, 0.12), transparent 20rem),
+      linear-gradient(135deg, rgb(219 224 231) 0%, rgb(240 243 247) 36%, rgb(21 28 40) 100%);
+    background-blend-mode: normal, multiply, screen, screen, normal;
+    background-position: center center, center center, center center, center center, center center;
+    background-size: cover, cover, auto, auto, cover;
+  }
+
+  [data-ui-mode='gundam'].dark body {
+    color: rgb(226 232 240);
+    background:
+      var(--sub2api-gundam-image-url, url('/assets/gundam/maintenance-bay.webp')),
+      linear-gradient(180deg, rgba(4, 8, 15, 0.7), rgba(4, 8, 15, 0.92)),
+      radial-gradient(circle at 18% 12%, rgba(79, 195, 247, 0.14), transparent 24rem),
+      radial-gradient(circle at 82% 12%, rgba(245, 183, 37, 0.1), transparent 20rem),
+      linear-gradient(135deg, rgb(13 18 28) 0%, rgb(8 13 20) 42%, rgb(5 9 15) 100%);
+    background-blend-mode: normal, multiply, screen, screen, normal;
+    background-position: center center, center center, center center, center center, center center;
+    background-size: cover, cover, auto, auto, cover;
+  }
+
+  [data-ui-mode='gundam-lite'] body {
+    background:
+      linear-gradient(180deg, rgba(10, 16, 26, 0.05), rgba(10, 16, 26, 0.08)),
+      linear-gradient(135deg, #f7f8fb 0%, #edf2f7 100%);
+  }
+
+  [data-ui-mode='gundam-lite'].dark body {
+    background:
+      linear-gradient(180deg, rgba(10, 16, 26, 0.12), rgba(10, 16, 26, 0.16)),
+      linear-gradient(135deg, #050b13 0%, #0b1320 100%);
+  }
+
+  [data-ui-mode='gundam'] body::before,
+  [data-ui-mode='gundam'] body::after,
+  [data-ui-mode='gundam-lite'] body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  [data-ui-mode='gundam'] body::before {
+    background:
+      linear-gradient(90deg, rgba(245, 183, 37, 0.14) 0 12px, transparent 12px 100%) 0 0 / 280px 100% no-repeat,
+      linear-gradient(180deg, rgba(79, 195, 247, 0.16) 0 2px, transparent 2px 100%) 0 0 / 100% 120px repeat-y,
+      repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 18px);
+    opacity: 0.38;
+    mix-blend-mode: screen;
+  }
+
+  [data-ui-mode='gundam'] body::after {
+    background:
+      radial-gradient(circle at 50% 50%, transparent 0 42%, rgba(4, 8, 15, 0.22) 72%, rgba(4, 8, 15, 0.6) 100%),
+      linear-gradient(180deg, transparent 0 32%, rgba(217, 70, 70, 0.06) 48%, transparent 58%);
+    opacity: 0.78;
+  }
+
+  [data-ui-mode='gundam-lite'] body::before {
+    background:
+      linear-gradient(180deg, rgba(245, 183, 37, 0.08), transparent 24%),
+      repeating-linear-gradient(90deg, rgba(59, 130, 246, 0.04) 0 1px, transparent 1px 18px);
+    opacity: 0.45;
+  }
+
+  [data-ui-mode='gundam'] .sidebar,
+  [data-ui-mode='gundam-lite'] .sidebar {
+    @apply border border-slate-300/90 bg-slate-100/[0.94] shadow-[0_0_0_1px_rgba(245,183,37,0.12),0_20px_50px_rgba(15,23,42,0.18)] dark:border-slate-700/90 dark:bg-slate-950/[0.92];
+    background-image:
+      linear-gradient(135deg, rgba(245, 183, 37, 0.08), transparent 22%, transparent 72%, rgba(79, 195, 247, 0.08)),
+      repeating-linear-gradient(0deg, transparent 0 20px, rgba(15, 23, 42, 0.03) 20px 21px);
+  }
+
+  [data-ui-mode='gundam'] .sidebar-header {
+    @apply border-b border-slate-300/80 pb-4 dark:border-slate-700/80;
+  }
+
+  [data-ui-mode='gundam'] .sidebar-logo {
+    position: relative;
+    @apply rounded-none border border-slate-300 bg-gradient-to-br from-white to-slate-100 shadow-none dark:border-slate-700 dark:from-slate-900 dark:to-slate-950;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+    box-shadow: inset 0 0 0 1px rgba(245, 183, 37, 0.08);
+  }
+
+  [data-ui-mode='gundam'] .sidebar-logo::after {
+    content: 'MECH';
+    position: absolute;
+    right: 0.45rem;
+    bottom: 0.2rem;
+    color: rgb(100 116 139);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.28em;
+  }
+
+  [data-ui-mode='gundam'] .sidebar-link,
+  [data-ui-mode='gundam-lite'] .sidebar-link {
+    @apply rounded-none border border-transparent;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  }
+
+  [data-ui-mode='gundam'] .sidebar-link:hover,
+  [data-ui-mode='gundam-lite'] .sidebar-link:hover {
+    @apply border-slate-300 bg-slate-200/80 text-slate-900 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-50;
+    box-shadow: inset 3px 0 0 rgb(245 183 37 / 0.92);
+  }
+
+  [data-ui-mode='gundam'] .sidebar-link-active,
+  [data-ui-mode='gundam-lite'] .sidebar-link-active {
+    @apply border-slate-400 bg-slate-200 text-slate-950 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-50;
+    box-shadow:
+      inset 0 0 0 1px rgba(245, 183, 37, 0.35),
+      inset 0 -3px 0 rgba(217, 70, 70, 0.5),
+      0 8px 24px rgba(15, 23, 42, 0.12);
+  }
+
+  [data-ui-mode='gundam'] .card,
+  [data-ui-mode='gundam'] .glass-card,
+  [data-ui-mode='gundam'] .card-glass,
+  [data-ui-mode='gundam'] .dialog-container,
+  [data-ui-mode='gundam'] .modal-content {
+    @apply rounded-none border border-slate-300 bg-white/90 shadow-none dark:border-slate-700 dark:bg-slate-950/[0.88];
+    position: relative;
+    overflow: hidden;
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+    box-shadow:
+      0 10px 28px rgba(15, 23, 42, 0.12),
+      inset 0 0 0 1px rgba(245, 183, 37, 0.09);
+  }
+
+  [data-ui-mode='gundam'] .card::before,
+  [data-ui-mode='gundam'] .glass-card::before,
+  [data-ui-mode='gundam'] .dialog-container::before,
+  [data-ui-mode='gundam'] .modal-content::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    height: 0.55rem;
+    background: linear-gradient(90deg, rgb(245 183 37) 0 22%, rgb(217 70 70) 22% 32%, rgb(79 195 247) 32% 100%);
+    opacity: 0.82;
+  }
+
+  [data-ui-mode='gundam'] .card::after,
+  [data-ui-mode='gundam'] .glass-card::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      linear-gradient(135deg, transparent 0 62%, rgba(245, 183, 37, 0.08) 63% 66%, transparent 67%),
+      linear-gradient(315deg, transparent 0 86%, rgba(217, 70, 70, 0.08) 88% 100%);
+    opacity: 0.9;
+  }
+
+  [data-ui-mode='gundam'] .card > :not(.gundam-boot-noise),
+  [data-ui-mode='gundam'] .glass-card > :not(.gundam-boot-noise) {
+    position: relative;
+    z-index: 1;
+  }
+
+  [data-ui-mode='gundam-lite'] .card,
+  [data-ui-mode='gundam-lite'] .glass-card,
+  [data-ui-mode='gundam-lite'] .card-glass,
+  [data-ui-mode='gundam-lite'] .dialog-container,
+  [data-ui-mode='gundam-lite'] .modal-content {
+    @apply rounded-none border border-slate-300 bg-white/[0.94] shadow-sm dark:border-slate-700 dark:bg-slate-950/[0.94];
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    box-shadow: inset 0 0 0 1px rgba(245, 183, 37, 0.05);
+  }
+
+  [data-ui-mode='gundam'] .btn,
+  [data-ui-mode='gundam-lite'] .btn {
+    @apply rounded-none font-bold uppercase tracking-[0.16em];
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  }
+
+  [data-ui-mode='gundam'] .btn-primary {
+    background: linear-gradient(180deg, rgb(59 130 246), rgb(30 64 175));
+    color: white;
+    box-shadow:
+      inset 0 -3px 0 rgba(245, 183, 37, 0.85),
+      0 10px 24px rgba(15, 23, 42, 0.16);
+  }
+
+  [data-ui-mode='gundam'] .btn-primary:hover {
+    filter: brightness(1.05);
+  }
+
+  [data-ui-mode='gundam'] .btn-secondary {
+    @apply border border-slate-300 bg-slate-100 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+    box-shadow: inset 0 0 0 1px rgba(245, 183, 37, 0.08);
+  }
+
+  [data-ui-mode='gundam'] .input,
+  [data-ui-mode='gundam'] select.input,
+  [data-ui-mode='gundam-lite'] .input,
+  [data-ui-mode='gundam-lite'] select.input {
+    @apply rounded-none border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.03);
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  }
+
+  [data-ui-mode='gundam'] .input:focus,
+  [data-ui-mode='gundam'] select.input:focus {
+    box-shadow:
+      0 0 0 3px rgba(245, 183, 37, 0.18),
+      inset 0 0 0 1px rgba(79, 195, 247, 0.18);
+  }
+
+  [data-ui-mode='gundam'] .table-container {
+    @apply rounded-none border border-slate-300 dark:border-slate-700;
+    overflow: hidden;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  }
+
+  [data-ui-mode='gundam'] .table {
+    background: rgba(255, 255, 255, 0.94);
+  }
+
+  [data-ui-mode='gundam'] .table th {
+    @apply bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.72rem;
+  }
+
+  [data-ui-mode='gundam'] .table tbody td {
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  [data-ui-mode='gundam'] .table tbody tr:hover {
+    @apply bg-slate-100/80 dark:bg-slate-800/50;
+  }
+
+  [data-ui-mode='gundam'] .page-title {
+    letter-spacing: -0.04em;
+  }
+
+  [data-ui-mode='gundam'] .badge-primary {
+    @apply bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100;
+    box-shadow: inset 0 0 0 1px rgba(245, 183, 37, 0.12);
+  }
+
+  [data-ui-mode='gundam'] .dropdown {
+    @apply rounded-none border border-slate-300 dark:border-slate-700;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  }
+
+  [data-ui-mode='gundam'] .animate-spin {
+    filter: drop-shadow(0 0 6px rgba(79, 195, 247, 0.35));
+  }
+
+  [data-ui-mode='gundam'] .card h1::before,
+  [data-ui-mode='gundam'] .card h2::before,
+  [data-ui-mode='gundam'] .card h3::before {
+    content: '';
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-right: 0.45rem;
+    border-radius: 0.1rem;
+    background:
+      linear-gradient(180deg, rgb(245 183 37), rgb(217 70 70));
+    box-shadow: 0 0 10px rgba(245, 183, 37, 0.45);
+    vertical-align: 0.08rem;
+  }
+
+  .gundam-boot-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    color: rgb(226 232 240);
+    background:
+      radial-gradient(circle at 18% 18%, rgba(79, 195, 247, 0.18), transparent 16rem),
+      radial-gradient(circle at 82% 18%, rgba(245, 183, 37, 0.15), transparent 14rem),
+      linear-gradient(135deg, rgba(5, 10, 18, 0.96), rgba(11, 16, 27, 0.99));
+    cursor: pointer;
+  }
+
+  .gundam-boot-bg,
+  .gundam-boot-door,
+  .gundam-boot-hud {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  .gundam-boot-bg {
+    inset: 0;
+    background:
+      var(--sub2api-gundam-image-url, url('/assets/gundam/maintenance-bay.webp')) center/cover no-repeat;
+    opacity: 0.42;
+    filter: saturate(0.76) contrast(1.02) brightness(0.62);
+    transform: scale(1.02);
+  }
+
+  .gundam-boot-door {
+    top: 0;
+    bottom: 0;
+    width: 50vw;
+    background:
+      linear-gradient(180deg, rgba(226, 232, 240, 0.16), rgba(226, 232, 240, 0.03)),
+      linear-gradient(135deg, rgba(245, 183, 37, 0.14), transparent 40%, rgba(217, 70, 70, 0.12));
+    border-inline: 1px solid rgba(148, 163, 184, 0.12);
+    clip-path: polygon(0 0, calc(100% - 5rem) 0, 100% 50%, calc(100% - 5rem) 100%, 0 100%);
+    opacity: 0;
+    animation: gundam-door-open 1.95s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .gundam-boot-door-left {
+    left: -2%;
+    --gundam-door-shift: -15%;
+    transform-origin: left center;
+  }
+
+  .gundam-boot-door-right {
+    right: -2%;
+    --gundam-door-shift: 15%;
+    clip-path: polygon(5rem 0, 100% 0, 100% 100%, 5rem 100%, 0 50%);
+    transform-origin: right center;
+  }
+
+  .gundam-boot-grid {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(circle at center, black 0 54%, transparent 84%);
+    opacity: 0.42;
+  }
+
+  .gundam-boot-noise {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 4px 4px;
+    mix-blend-mode: screen;
+    opacity: 0.12;
+    animation: gundam-noise 4.1s steps(2, end) infinite;
+  }
+
+  .gundam-boot-hud {
+    inset: 0;
+    display: grid;
+    place-items: center;
+    opacity: 0.84;
+  }
+
+  .gundam-boot-hud-ring,
+  .gundam-boot-hud-axis {
+    position: absolute;
+    border: 1px solid rgba(79, 195, 247, 0.2);
+  }
+
+  .gundam-boot-hud-ring {
+    width: min(74vw, 760px);
+    aspect-ratio: 1;
+    border-radius: 999px;
+    box-shadow:
+      0 0 0 1px rgba(245, 183, 37, 0.09),
+      inset 0 0 0 1px rgba(79, 195, 247, 0.08);
+  }
+
+  .gundam-boot-hud-axis {
+    width: min(80vw, 920px);
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(245, 183, 37, 0.7), transparent);
+  }
+
+  .gundam-boot-hud-axis-y {
+    transform: rotate(90deg);
+  }
+
+  .gundam-boot-frame {
+    position: relative;
+    width: min(92vw, 860px);
+    min-height: 420px;
+    display: grid;
+    grid-template-columns: minmax(210px, 0.95fr) 1.05fr;
+    gap: 1.5rem;
+    align-items: center;
+    padding: clamp(1.25rem, 4vw, 2.5rem);
+    border: 1px solid rgba(226, 232, 240, 0.18);
+    background:
+      linear-gradient(135deg, rgba(9, 16, 28, 0.86), rgba(19, 27, 41, 0.74)),
+      linear-gradient(180deg, rgba(245, 183, 37, 0.08), transparent 24%);
+    clip-path: polygon(0 0, calc(100% - 34px) 0, 100% 34px, 100% 100%, 34px 100%, 0 calc(100% - 34px));
+    box-shadow:
+      0 0 0 1px rgba(79, 195, 247, 0.1),
+      0 28px 60px rgba(4, 8, 15, 0.58),
+      inset 0 0 0 1px rgba(245, 183, 37, 0.12);
+    backdrop-filter: blur(12px);
+  }
+
+  .gundam-boot-rails {
+    position: absolute;
+    inset: 1rem;
+    border: 1px solid rgba(245, 183, 37, 0.18);
+    clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px));
+  }
+
+  .gundam-boot-corners::before,
+  .gundam-boot-corners::after {
+    content: '';
+    position: absolute;
+    width: 140px;
+    height: 10px;
+    background: linear-gradient(90deg, rgb(245 183 37), rgb(79 195 247), rgb(217 70 70));
+  }
+
+  .gundam-boot-corners::before {
+    top: 16px;
+    left: 18px;
+  }
+
+  .gundam-boot-corners::after {
+    right: 18px;
+    bottom: 16px;
+    transform: rotate(180deg);
+  }
+
+  .gundam-boot-tag {
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    padding: 0.32rem 0.65rem;
+    border: 1px solid rgba(245, 183, 37, 0.34);
+    background: rgba(8, 15, 27, 0.62);
+    color: rgb(245 183 37);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+  }
+
+  .gundam-boot-unit {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 300px;
+    overflow: hidden;
+    border: 1px solid rgba(79, 195, 247, 0.22);
+    background:
+      linear-gradient(180deg, rgba(245, 183, 37, 0.05), transparent 26%),
+      radial-gradient(circle at 50% 50%, rgba(79, 195, 247, 0.18), transparent 62%),
+      linear-gradient(135deg, rgba(7, 13, 22, 0.92), rgba(14, 24, 39, 0.7));
+  }
+
+  .gundam-boot-unit-svg {
+    width: min(44vw, 300px);
+    max-width: 100%;
+    fill: rgba(226, 232, 240, 0.05);
+    stroke: rgba(226, 232, 240, 0.94);
+    stroke-width: 2.4;
+    filter:
+      drop-shadow(0 0 16px rgba(79, 195, 247, 0.42))
+      drop-shadow(0 0 22px rgba(245, 183, 37, 0.18));
+  }
+
+  .gundam-boot-reticle {
+    position: absolute;
+    inset: 14%;
+    border: 1px solid rgba(245, 183, 37, 0.34);
+    clip-path: polygon(0 18%, 18% 0, 82% 0, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0 82%);
+  }
+
+  .gundam-boot-unit-scan {
+    position: absolute;
+    inset: -20% 0;
+    background: linear-gradient(180deg, transparent 0 45%, rgba(79, 195, 247, 0.28) 50%, transparent 55%);
+    animation: gundam-boot-scan 1.95s ease-in-out both;
+    mix-blend-mode: screen;
+  }
+
+  .gundam-boot-kicker {
+    color: rgb(245 183 37);
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+  }
+
+  .gundam-boot-copy h2 {
+    margin-top: 0.45rem;
+    font-size: clamp(2.3rem, 7.6vw, 5rem);
+    font-weight: 950;
+    line-height: 0.92;
+    letter-spacing: -0.07em;
+    text-transform: uppercase;
+  }
+
+  .gundam-boot-metrics {
+    margin-top: 1rem;
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .gundam-boot-status {
+    display: flex;
+    justify-content: space-between;
+    max-width: 360px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+    padding-bottom: 0.12rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .gundam-boot-status b {
+    color: rgb(245 183 37);
+  }
+
+  .gundam-boot-skip {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    border: 1px solid rgba(245, 183, 37, 0.42);
+    padding: 0.36rem 0.76rem;
+    color: rgb(226 232 240);
+    font-size: 0.74rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    background: rgba(8, 15, 27, 0.76);
+    backdrop-filter: blur(8px);
+  }
+
+  .gundam-boot-bars {
+    margin-top: 1.1rem;
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .gundam-boot-bars i {
+    display: block;
+    height: 0.62rem;
+    width: var(--boot-width, 72%);
+    border: 1px solid rgba(79, 195, 247, 0.28);
+    background:
+      linear-gradient(90deg, rgba(245, 183, 37, 0.92), rgba(79, 195, 247, 0.86) 70%, rgba(79, 195, 247, 0.14)),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent);
+    box-shadow: 0 0 18px rgba(79, 195, 247, 0.18);
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 4px 50%);
+  }
+
+  .gundam-boot-scan {
+    position: absolute;
+    inset: -20% 0;
+    background: linear-gradient(180deg, transparent 0 44%, rgba(245, 183, 37, 0.28) 50%, transparent 56%);
+    animation: gundam-boot-scan 2.1s ease-in-out both;
+    mix-blend-mode: screen;
+  }
+
+  .gundam-boot-fade-enter-active,
+  .gundam-boot-fade-leave-active {
+    transition: opacity 0.22s ease;
+  }
+
+  .gundam-boot-fade-enter-from,
+  .gundam-boot-fade-leave-to {
+    opacity: 0;
+  }
+
+  @keyframes gundam-boot-scan {
+    from {
+      transform: translateY(-48%);
+    }
+    to {
+      transform: translateY(48%);
+    }
+  }
+
+  @keyframes gundam-door-open {
+    0% {
+      opacity: 0;
+      transform: translateX(0) scaleX(1);
+    }
+    18% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0.14;
+      transform: translateX(var(--gundam-door-shift, -15%)) scaleX(0.9);
+    }
+  }
+
+  @keyframes gundam-noise {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(-1%, 1%, 0);
+    }
+  }
+
+  @media (max-width: 640px) {
+    [data-ui-mode='gundam'] .sidebar {
+      background-image:
+        linear-gradient(135deg, rgba(245, 183, 37, 0.08), transparent 28%),
+        repeating-linear-gradient(0deg, transparent 0 18px, rgba(15, 23, 42, 0.03) 18px 19px);
+    }
+
+    .gundam-boot-frame {
+      grid-template-columns: 1fr;
+      min-height: auto;
+    }
+
+    .gundam-boot-unit {
+      min-height: 200px;
+    }
+
+    .gundam-boot-door {
+      width: 58vw;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-ui-mode='gundam'] .card:hover::after,
+    [data-ui-mode='gundam'] .glass-card:hover::after {
+      animation: none;
+    }
+
+    [data-ui-mode='gundam'] *,
+    [data-ui-mode='gundam-lite'] * {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+
+    .gundam-boot-scan,
+    .gundam-boot-unit-scan,
+    .gundam-boot-noise,
+    .gundam-boot-door {
+      animation: none;
+    }
+
+    .gundam-boot-door {
+      opacity: 0.1;
+    }
+  }
 }
 
 @layer utilities {
