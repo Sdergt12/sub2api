@@ -1,14 +1,25 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
+    <div class="admin-dashboard-shell space-y-6">
       <!-- Loading State -->
       <div v-if="loading" class="flex items-center justify-center py-12">
         <LoadingSpinner />
       </div>
 
       <template v-else-if="stats">
+        <div class="gundam-dashboard-banner" aria-hidden="true">
+          <div>
+            <span class="gundam-dashboard-kicker">HANGAR CONTROL TERMINAL</span>
+            <strong>MAINTENANCE BAY / ADMIN CORE</strong>
+          </div>
+          <div class="gundam-dashboard-status">
+            <span>FRAME LINK</span>
+            <b>ONLINE</b>
+          </div>
+        </div>
+
         <!-- Row 1: Core Stats -->
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="dashboard-stat-grid grid grid-cols-2 gap-4 lg:grid-cols-4">
           <!-- Total API Keys -->
           <div class="card p-4">
             <div class="flex items-center gap-3">
@@ -96,7 +107,7 @@
         </div>
 
         <!-- Row 2: Token Stats -->
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="dashboard-stat-grid grid grid-cols-2 gap-4 lg:grid-cols-4">
           <!-- Today Tokens -->
           <div class="card p-4">
             <div class="flex items-center gap-3">
@@ -219,7 +230,7 @@
         <!-- Charts Section -->
         <div class="space-y-6">
           <!-- Date Range Filter -->
-          <div class="card p-4">
+          <div class="dashboard-control-panel card p-4">
             <div class="flex flex-wrap items-center gap-4">
               <div class="flex items-center gap-2">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -250,7 +261,7 @@
           </div>
 
           <!-- Charts Grid -->
-          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div class="dashboard-chart-grid grid grid-cols-1 gap-6 lg:grid-cols-2">
             <ModelDistributionChart
               :model-stats="modelStats"
               :enable-ranking-view="true"
@@ -269,7 +280,7 @@
           </div>
 
           <!-- User Usage Trend (Full Width) -->
-          <div class="card p-4">
+          <div class="dashboard-terminal-card card p-4">
             <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
               {{ t('admin.dashboard.recentUsage') }} (Top 12)
             </h3>
@@ -537,15 +548,16 @@ const formatNumber = (value: number): string => {
   return value.toLocaleString()
 }
 
-const formatCost = (value: number): string => {
-  if (value >= 1000) {
-    return (value / 1000).toFixed(2) + 'K'
-  } else if (value >= 1) {
-    return value.toFixed(2)
-  } else if (value >= 0.01) {
-    return value.toFixed(3)
+const formatCost = (value: number | undefined): string => {
+  const safeValue = Number.isFinite(value) ? value as number : 0
+  if (safeValue >= 1000) {
+    return (safeValue / 1000).toFixed(2) + 'K'
+  } else if (safeValue >= 1) {
+    return safeValue.toFixed(2)
+  } else if (safeValue >= 0.01) {
+    return safeValue.toFixed(3)
   }
-  return value.toFixed(4)
+  return safeValue.toFixed(4)
 }
 
 const formatDuration = (ms: number): string => {

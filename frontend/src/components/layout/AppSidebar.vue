@@ -155,20 +155,50 @@
         }}</span>
       </button>
 
-      <!-- UI Mode Toggle -->
+      <!-- UI Mode Selector -->
       <button
+        v-if="sidebarCollapsed"
         @click="toggleUIMode"
         class="sidebar-link mb-2 w-full"
         :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
-        :title="sidebarCollapsed ? currentUIModeLabel : undefined"
+        :title="`${t('nav.currentUIMode')}: ${currentUIModeLabel} / ${nextUIModeLabel}`"
       >
         <span class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border border-current text-[10px] font-black">
           {{ uiMode === 'gundam' ? 'G' : uiMode === 'gundam-lite' ? 'GL' : 'O' }}
         </span>
-        <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
-          {{ currentUIModeLabel }}
-        </span>
       </button>
+      <div v-else class="ui-mode-selector mb-2" :class="{ 'ui-mode-selector-active': isGundamActive }">
+        <div class="ui-mode-selector-header">
+          <span class="ui-mode-selector-title">{{ t('nav.currentUIMode') }}: {{ currentUIModeLabel }}</span>
+          <span v-if="isGundamActive" class="ui-mode-selector-badge">HANGAR UI ACTIVE</span>
+        </div>
+        <div class="ui-mode-selector-options" role="group" :aria-label="t('nav.uiModeSelector')">
+          <button
+            type="button"
+            class="ui-mode-option"
+            :class="{ 'ui-mode-option-active': uiMode === 'official' }"
+            @click="setUIMode('official')"
+          >
+            {{ t('nav.officialModeShort') }}
+          </button>
+          <button
+            type="button"
+            class="ui-mode-option"
+            :class="{ 'ui-mode-option-active': uiMode === 'gundam' }"
+            @click="setUIMode('gundam')"
+          >
+            Gundam
+          </button>
+          <button
+            type="button"
+            class="ui-mode-option"
+            :class="{ 'ui-mode-option-active': uiMode === 'gundam-lite' }"
+            @click="setUIMode('gundam-lite')"
+          >
+            Lite
+          </button>
+        </div>
+      </div>
 
       <!-- Collapse Button -->
       <button
@@ -258,6 +288,12 @@ const currentUIModeLabel = computed(() => {
   if (uiMode.value === 'gundam-lite') return t('nav.gundamLiteMode')
   return t('nav.officialMode')
 })
+const nextUIModeLabel = computed(() => {
+  if (uiMode.value === 'official') return t('nav.switchToGundamMode')
+  if (uiMode.value === 'gundam') return t('nav.switchToGundamLiteMode')
+  return t('nav.switchToOfficialMode')
+})
+const isGundamActive = computed(() => uiMode.value === 'gundam' || uiMode.value === 'gundam-lite')
 
 // Track which parent nav groups are expanded
 const expandedGroups = ref<Set<string>>(new Set())
@@ -822,6 +858,10 @@ function toggleTheme() {
 
 function toggleUIMode() {
   appStore.toggleUIMode()
+}
+
+function setUIMode(mode: 'official' | 'gundam' | 'gundam-lite') {
+  appStore.setUIMode(mode)
 }
 
 function closeMobile() {
