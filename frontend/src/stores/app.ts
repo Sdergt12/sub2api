@@ -18,6 +18,8 @@ export const useAppStore = defineStore('app', () => {
   type UIMode = 'official' | 'gundam' | 'gundam-lite'
   const uiModeStorageKey = 'sub2api_ui_mode'
   const gundamImageStorageKey = 'sub2api_gundam_image_url'
+  const gundamBootDurationStorageKey = 'sub2api_gundam_boot_duration_ms'
+  const defaultGundamBootDurationMs = 4200
 
   // ==================== State ====================
 
@@ -25,6 +27,7 @@ export const useAppStore = defineStore('app', () => {
   const mobileOpen = ref<boolean>(false)
   const uiMode = ref<UIMode>('official')
   const gundamBootNonce = ref<number>(0)
+  const gundamBootDurationMs = ref<number>(defaultGundamBootDurationMs)
   const loading = ref<boolean>(false)
   const toasts = ref<Toast[]>([])
 
@@ -65,6 +68,12 @@ export const useAppStore = defineStore('app', () => {
     return 'official'
   }
 
+  function normalizeGundamBootDuration(value: unknown): number {
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed)) return defaultGundamBootDurationMs
+    return Math.min(8000, Math.max(3000, Math.round(parsed)))
+  }
+
   function isEmbeddedRuntime(): boolean {
     if (typeof window === 'undefined') return false
     const params = new URLSearchParams(window.location.search)
@@ -102,6 +111,14 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
+  function setGundamBootDurationMs(durationMs: number): void {
+    const nextDuration = normalizeGundamBootDuration(durationMs)
+    gundamBootDurationMs.value = nextDuration
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(gundamBootDurationStorageKey, String(nextDuration))
+    }
+  }
+
   function toggleUIMode(): void {
     if (uiMode.value === 'official') {
       setUIMode('gundam')
@@ -119,6 +136,7 @@ export const useAppStore = defineStore('app', () => {
       return
     }
     applyGundamImageURL(localStorage.getItem(gundamImageStorageKey))
+    gundamBootDurationMs.value = normalizeGundamBootDuration(localStorage.getItem(gundamBootDurationStorageKey))
     setUIMode(normalizeUIMode(localStorage.getItem(uiModeStorageKey)))
   }
 
@@ -478,6 +496,7 @@ export const useAppStore = defineStore('app', () => {
     mobileOpen,
     uiMode,
     gundamBootNonce,
+    gundamBootDurationMs,
     loading,
     toasts,
 
@@ -509,6 +528,7 @@ export const useAppStore = defineStore('app', () => {
     setUIMode,
     toggleUIMode,
     applyGundamImageURL,
+    setGundamBootDurationMs,
     initUIMode,
     setSidebarCollapsed,
     toggleMobileSidebar,

@@ -83,7 +83,7 @@ watch(
     if (!nonce) return
     visible.value = true
     if (timer) clearTimeout(timer)
-    timer = setTimeout(skip, prefersReducedMotion() ? 520 : 2100)
+    timer = setTimeout(skip, prefersReducedMotion() ? 620 : appStore.gundamBootDurationMs)
   }
 )
 </script>
