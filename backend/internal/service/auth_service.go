@@ -436,6 +436,14 @@ func (s *AuthService) IsEmailVerifyEnabled(ctx context.Context) bool {
 	return s.settingService.IsEmailVerifyEnabled(ctx)
 }
 
+// IsInvitationCodeEnabled 暴露全站邀请码开关，供 OAuth callback 判断是否应进入邀请码 pending 流程。
+func (s *AuthService) IsInvitationCodeEnabled(ctx context.Context) bool {
+	if s == nil || s.settingService == nil {
+		return false
+	}
+	return s.settingService.IsInvitationCodeEnabled(ctx)
+}
+
 // Login 用户登录，返回JWT token
 func (s *AuthService) Login(ctx context.Context, email, password string) (string, *User, error) {
 	// 查找用户

@@ -4,22 +4,139 @@
       <div class="card p-5">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 class="page-title text-2xl font-bold">Token 风险审查</h1>
+            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600 dark:text-blue-300">Token Risk Console</p>
+            <h1 class="page-title mt-2 text-2xl font-bold">Token 审查告警看板</h1>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              从 token 审计日志中提炼滥用风险，展示风险分类、评分、命中规则和管理员处置动作。页面只展示 hash 与脱敏摘要，不展示完整 token/API key。
+              先看告警、主体和建议动作，再下钻事件详情。页面只展示 token hash、摘要和脱敏主体，不展示完整 token、JWT 或 API key。
             </p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button class="btn btn-secondary" type="button" :disabled="loading" @click="backfillEvents">
-              回填审计日志
+            <button class="btn btn-secondary" type="button" :disabled="loading" @click="backfillEvents">回填审计日志</button>
+            <button class="btn btn-primary" type="button" :disabled="loading" @click="fetchAll">刷新</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <button
+          v-for="item in summaryCards"
+          :key="item.key"
+          type="button"
+          class="card p-4 text-left transition hover:-translate-y-0.5"
+          @click="item.apply?.()"
+        >
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ item.label }}</p>
+          <p class="mt-2 text-2xl font-bold" :class="item.tone">{{ item.value }}</p>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ item.meta }}</p>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div class="card p-4 xl:col-span-2">
+          <div class="mb-4 flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-semibold text-gray-900 dark:text-white">需要优先处理</h2>
+              <p class="text-xs text-gray-500 dark:text-gray-400">默认聚焦 open 状态中的 high / critical 事件。</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" type="button" @click="showAdvancedFilters = !showAdvancedFilters">
+              {{ showAdvancedFilters ? '收起筛选' : '高级筛选' }}
             </button>
-            <button class="btn btn-primary" type="button" :disabled="loading" @click="fetchAll">
-              刷新
+          </div>
+
+          <div v-if="priorityEvents.length === 0" class="rounded-xl bg-gray-50 py-10 text-center text-sm text-gray-500 dark:bg-dark-700/50">
+            当前没有待处理的高危 Token 事件。
+          </div>
+          <div v-else class="space-y-3">
+            <div v-for="event in priorityEvents" :key="event.id" class="rounded-xl border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-800/70">
+              <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span :class="riskBadgeClass(event.risk_level)" class="rounded-full px-2 py-1 text-xs font-semibold">{{ event.risk_level }} · {{ event.risk_score }}</span>
+                    <span class="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200">{{ event.status }}</span>
+                    <span class="text-xs text-gray-500">{{ formatTime(event.last_seen_at || event.created_at) }}</span>
+                  </div>
+                  <p class="mt-2 truncate text-sm font-medium text-gray-900 dark:text-white" :title="`${event.method} ${event.path}`">
+                    {{ event.method || '-' }} {{ event.path || '-' }}
+                  </p>
+                  <p class="mt-1 text-xs text-gray-500">
+                    {{ simpleExplanation(event) }}
+                  </p>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span v-for="category in event.risk_categories.slice(0, 4)" :key="category" class="rounded bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
+                      {{ category }}
+                    </span>
+                  </div>
+                </div>
+                <button class="btn btn-primary btn-sm shrink-0" type="button" @click="openDetail(event)">查看并处理</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-4">
+          <h2 class="text-base font-semibold text-gray-900 dark:text-white">高风险主体</h2>
+          <p class="mb-3 mt-1 text-xs text-gray-500 dark:text-gray-400">按用户、token hash 和 API key 聚合。</p>
+          <div class="space-y-3">
+            <button
+              v-for="item in topSubjects"
+              :key="`${item.label}-${item.subject}`"
+              type="button"
+              class="w-full rounded-xl bg-gray-50 p-3 text-left dark:bg-dark-700/50"
+              @click="filters.q = item.subject; resetAndFetch()"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ item.label }}</span>
+                <span class="text-xs text-gray-500">{{ item.count }} 次</span>
+              </div>
+              <div class="mt-1 truncate font-mono text-sm text-gray-900 dark:text-white" :title="item.subject">{{ item.subject || '-' }}</div>
+              <div class="mt-1 text-xs text-gray-500">累计风险分 {{ item.score }}</div>
+            </button>
+            <div v-if="topSubjects.length === 0" class="py-8 text-center text-sm text-gray-500">暂无高风险主体</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div class="card p-4 xl:col-span-2">
+          <h2 class="mb-3 text-base font-semibold text-gray-900 dark:text-white">风险类型分布</h2>
+          <div v-if="categoryDistribution.length === 0" class="py-8 text-center text-sm text-gray-500">暂无分类数据</div>
+          <div v-else class="space-y-3">
+            <button
+              v-for="item in categoryDistribution"
+              :key="item.name"
+              type="button"
+              class="w-full text-left"
+              @click="filters.risk_category = item.name; resetAndFetch()"
+            >
+              <div class="mb-1 flex items-center justify-between text-sm">
+                <span class="font-medium text-gray-700 dark:text-gray-200">{{ item.name }}</span>
+                <span class="text-gray-500">{{ item.count }}</span>
+              </div>
+              <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
+                <div class="h-full rounded-full bg-blue-500" :style="{ width: `${item.percent}%` }"></div>
+              </div>
             </button>
           </div>
         </div>
 
-        <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <div class="card p-4">
+          <h2 class="mb-3 text-base font-semibold text-gray-900 dark:text-white">风险等级概览</h2>
+          <div class="space-y-3">
+            <div v-for="level in levelBars" :key="level.name">
+              <div class="mb-1 flex items-center justify-between text-sm">
+                <span class="font-medium text-gray-700 dark:text-gray-200">{{ level.name }}</span>
+                <span class="text-gray-500">{{ level.count }}</span>
+              </div>
+              <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
+                <div class="h-full rounded-full" :class="level.color" :style="{ width: `${level.percent}%` }"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="showAdvancedFilters" class="card p-5">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
           <div>
             <label class="input-label">时间范围</label>
             <Select v-model="filters.time_range" :options="timeRangeOptions" @change="resetAndFetch" />
@@ -47,51 +164,15 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
-        <div v-for="item in summaryCards" :key="item.key" class="card p-4">
-          <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ item.label }}</p>
-          <p class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{{ item.value }}</p>
-          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ item.meta }}</p>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div class="card p-4 xl:col-span-2">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-base font-semibold text-gray-900 dark:text-white">风险类型分布</h2>
-            <span class="text-xs text-gray-500 dark:text-gray-400">近 {{ filters.time_range }}</span>
-          </div>
-          <div v-if="categoryDistribution.length === 0" class="py-8 text-center text-sm text-gray-500">暂无分类数据</div>
-          <div v-else class="space-y-3">
-            <div v-for="item in categoryDistribution" :key="item.name">
-              <div class="mb-1 flex items-center justify-between text-sm">
-                <span class="font-medium text-gray-700 dark:text-gray-200">{{ item.name }}</span>
-                <span class="text-gray-500">{{ item.count }}</span>
-              </div>
-              <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
-                <div class="h-full rounded-full bg-blue-500" :style="{ width: `${item.percent}%` }"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card p-4">
-          <h2 class="mb-3 text-base font-semibold text-gray-900 dark:text-white">高风险主体</h2>
-          <div class="space-y-3">
-            <div v-for="item in topSubjects" :key="item.label" class="rounded-xl bg-gray-50 p-3 dark:bg-dark-700/50">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ item.label }}</span>
-                <span class="text-xs text-gray-500">{{ item.count }} 次</span>
-              </div>
-              <div class="mt-1 truncate font-mono text-sm text-gray-900 dark:text-white" :title="item.subject">{{ item.subject || '-' }}</div>
-              <div class="mt-1 text-xs text-gray-500">累计风险分 {{ item.score }}</div>
-            </div>
-            <div v-if="topSubjects.length === 0" class="py-8 text-center text-sm text-gray-500">暂无高风险主体</div>
-          </div>
-        </div>
-      </div>
-
       <div class="card overflow-hidden">
+        <div class="flex flex-col gap-2 border-b border-gray-100 p-4 dark:border-dark-700 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white">事件明细</h2>
+            <p class="text-xs text-gray-500">用于下钻排查，默认只看 open 事件，可在高级筛选中调整。</p>
+          </div>
+          <span class="text-xs text-gray-500">共 {{ total }} 条</span>
+        </div>
+
         <div v-if="loading" class="flex items-center justify-center py-16">
           <LoadingSpinner size="lg" />
         </div>
@@ -108,11 +189,9 @@
               <tr>
                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">时间</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">风险</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">分类</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">主体</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">请求</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">频率</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">状态</th>
                 <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">操作</th>
               </tr>
             </thead>
@@ -123,19 +202,13 @@
                   <span :class="riskBadgeClass(row.risk_level)" class="inline-flex rounded-full px-2 py-1 text-xs font-semibold">
                     {{ row.risk_level }} · {{ row.risk_score }}
                   </span>
-                </td>
-                <td class="px-4 py-3">
-                  <div class="flex max-w-[260px] flex-wrap gap-1">
-                    <span v-for="category in row.risk_categories" :key="category" class="rounded bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
-                      {{ category }}
-                    </span>
+                  <div class="mt-1 flex max-w-[220px] flex-wrap gap-1">
+                    <span v-for="category in row.risk_categories.slice(0, 3)" :key="category" class="rounded bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">{{ category }}</span>
                   </div>
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                   <div>user={{ row.user_id ?? '-' }} / key={{ row.api_key_id ?? '-' }}</div>
-                  <div class="font-mono text-xs text-gray-500">
-                    {{ tokenSummary(row) }}
-                  </div>
+                  <div class="font-mono text-xs text-gray-500">{{ tokenSummary(row) }}</div>
                   <div class="font-mono text-xs text-gray-500">{{ row.client_ip || '-' }}</div>
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
@@ -145,9 +218,6 @@
                 <td class="whitespace-nowrap px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
                   <div>5m {{ row.count_5m ?? 0 }} / 1h {{ row.count_1h ?? 0 }}</div>
                   <div>24h {{ row.count_24h ?? 0 }} · IP {{ row.distinct_ip_24h ?? 0 }}</div>
-                </td>
-                <td class="px-4 py-3">
-                  <span class="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200">{{ row.status }}</span>
                 </td>
                 <td class="px-4 py-3 text-right">
                   <button class="btn btn-secondary btn-sm" type="button" @click="openDetail(row)">详情/处置</button>
@@ -170,15 +240,20 @@
 
     <BaseDialog :show="detailOpen" title="风险详情与处置" width="wide" @close="detailOpen = false">
       <div v-if="selectedEvent" class="space-y-4">
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-dark-700/50">
-            <p class="text-xs text-gray-500">风险解释</p>
-            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ selectedEvent.explanation || '-' }}</p>
+            <p class="text-xs font-semibold text-gray-500">发生了什么</p>
+            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">
+              {{ selectedEvent.method || '-' }} {{ selectedEvent.path || '-' }} 返回 HTTP {{ selectedEvent.status_code || '-' }}，主体 {{ tokenSummary(selectedEvent) }}。
+            </p>
           </div>
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-dark-700/50">
-            <p class="text-xs text-gray-500">脱敏凭证</p>
-            <p class="mt-1 font-mono text-sm text-gray-800 dark:text-gray-100">{{ tokenSummary(selectedEvent) }}</p>
-            <p class="mt-1 truncate font-mono text-xs text-gray-500" :title="selectedEvent.token_hash">hash={{ selectedEvent.token_hash || '-' }}</p>
+            <p class="text-xs font-semibold text-gray-500">为什么判定</p>
+            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ selectedEvent.explanation || simpleExplanation(selectedEvent) }}</p>
+          </div>
+          <div class="rounded-xl bg-gray-50 p-3 dark:bg-dark-700/50">
+            <p class="text-xs font-semibold text-gray-500">建议怎么处理</p>
+            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ recommendedText(selectedEvent) }}</p>
           </div>
         </div>
 
@@ -191,10 +266,10 @@
         </div>
 
         <div class="rounded-xl border border-gray-200 p-3 dark:border-dark-700">
-          <p class="text-sm font-semibold text-gray-900 dark:text-white">建议处置动作</p>
+          <p class="text-sm font-semibold text-gray-900 dark:text-white">处置动作</p>
           <div class="mt-3 flex flex-wrap gap-2">
             <button
-              v-for="action in selectedEvent.recommended_actions"
+              v-for="action in actionButtons"
               :key="action"
               class="btn btn-secondary btn-sm"
               type="button"
@@ -249,6 +324,7 @@ const detailOpen = ref(false)
 const selectedEvent = ref<TokenRiskEvent | null>(null)
 const actions = ref<TokenRiskAction[]>([])
 const actionNote = ref('')
+const showAdvancedFilters = ref(false)
 
 const filters = reactive({
   time_range: '24h',
@@ -316,16 +392,24 @@ const tokenTypeOptions = [
   { value: 'embedded', label: 'embedded' }
 ]
 
+const actionButtons = ['mark_handled', 'mark_false_positive', 'watch_user', 'watch_token', 'force_relogin', 'send_warning', 'send_reminder']
+
 const summaryCards = computed(() => {
   const data = summary.value
   return [
-    { key: 'total', label: '风险事件', value: data?.total ?? 0, meta: '当前范围内全部事件' },
-    { key: 'open', label: '待处理', value: data?.open ?? 0, meta: '需要管理员确认' },
-    { key: 'critical', label: 'Critical', value: data?.critical ?? 0, meta: '建议优先处置' },
-    { key: 'high', label: 'High', value: data?.high ?? 0, meta: '高风险事件' },
-    { key: 'users', label: '异常用户', value: data?.distinct_users ?? 0, meta: '去重 user_id' },
-    { key: 'keys', label: '异常 API Key', value: data?.distinct_api_keys ?? 0, meta: '去重 key id' }
+    { key: 'open', label: '待处理', value: data?.open ?? 0, meta: '需要管理员确认', tone: 'text-amber-600', apply: () => setStatusFilter('open') },
+    { key: 'critical', label: 'Critical', value: data?.critical ?? 0, meta: '立即排查', tone: 'text-red-600', apply: () => setRiskLevelFilter('critical') },
+    { key: 'high', label: 'High', value: data?.high ?? 0, meta: '优先处理', tone: 'text-orange-600', apply: () => setRiskLevelFilter('high') },
+    { key: 'users', label: '异常用户', value: data?.distinct_users ?? 0, meta: '去重 user_id', tone: 'text-gray-900 dark:text-white' },
+    { key: 'keys', label: '异常 API Key', value: data?.distinct_api_keys ?? 0, meta: '去重 key id', tone: 'text-gray-900 dark:text-white' },
+    { key: 'total', label: '风险事件', value: data?.total ?? 0, meta: '当前时间范围', tone: 'text-gray-900 dark:text-white' }
   ]
+})
+
+const priorityEvents = computed(() => {
+  const highRisk = (summary.value?.recent_high_risk || []).filter((item) => item.status === 'open')
+  if (highRisk.length > 0) return highRisk.slice(0, 6)
+  return events.value.filter((item) => item.status === 'open' && ['high', 'critical'].includes(item.risk_level)).slice(0, 6)
 })
 
 const categoryDistribution = computed(() => {
@@ -335,6 +419,17 @@ const categoryDistribution = computed(() => {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
     .map(([name, count]) => ({ name, count, percent: Math.max(4, Math.round((count / max) * 100)) }))
+})
+
+const levelBars = computed(() => {
+  const levels = summary.value?.by_level || {}
+  const max = Math.max(1, ...Object.values(levels))
+  return [
+    { name: 'critical', count: levels.critical || 0, color: 'bg-red-500' },
+    { name: 'high', count: levels.high || 0, color: 'bg-orange-500' },
+    { name: 'medium', count: levels.medium || 0, color: 'bg-blue-500' },
+    { name: 'low', count: levels.low || 0, color: 'bg-gray-400' }
+  ].map((item) => ({ ...item, percent: Math.max(4, Math.round((item.count / max) * 100)) }))
 })
 
 const topSubjects = computed(() => {
@@ -366,6 +461,15 @@ function tokenSummary(row: TokenRiskEvent): string {
   return row.token_hash ? `hash=${row.token_hash.slice(0, 12)}...` : '-'
 }
 
+function simpleExplanation(row: TokenRiskEvent): string {
+  return row.explanation || `${row.risk_categories.join(', ') || 'unknown'} 命中 ${row.matched_rules.length || 0} 条规则`
+}
+
+function recommendedText(row: TokenRiskEvent): string {
+  if (row.recommended_actions.length === 0) return '先查看同用户、同 IP、同 token hash 的历史行为，再决定是否标记或观察。'
+  return row.recommended_actions.map(actionLabel).join('、')
+}
+
 function actionLabel(action: string): string {
   const labels: Record<string, string> = {
     mark_handled: '标记已处理',
@@ -377,6 +481,16 @@ function actionLabel(action: string): string {
     send_reminder: '发送提醒'
   }
   return labels[action] || action
+}
+
+function setStatusFilter(value: string) {
+  filters.status = value
+  resetAndFetch()
+}
+
+function setRiskLevelFilter(value: string) {
+  filters.risk_level = value
+  resetAndFetch()
 }
 
 function buildQuery() {
@@ -459,9 +573,7 @@ async function openDetail(row: TokenRiskEvent) {
 async function applyAction(action: string) {
   if (!selectedEvent.value) return
   const confirmRequired = action === 'force_relogin'
-  if (confirmRequired && !window.confirm('确认执行高危处置动作？该动作会写入审计记录。')) {
-    return
-  }
+  if (confirmRequired && !window.confirm('确认执行高危处置动作？该动作会写入审计记录。')) return
   actionLoading.value = true
   try {
     await tokenRiskAPI.createAction(selectedEvent.value.id, {
