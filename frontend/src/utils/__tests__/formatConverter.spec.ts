@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { convertPayload, maskSensitive } from '@/utils/formatConverter'
+import { attachGroupIdsToPayload, convertPayload, maskSensitive } from '@/utils/formatConverter'
 
 const options = {
   inputFormat: 'gpt-session' as const,
@@ -120,6 +120,37 @@ describe('formatConverter', () => {
 
     expect(result.accountCount).toBe(2)
     expect((result.output as any).accounts[1].credentials.chatgpt_account_id).toBe('acct-b')
+  })
+
+  it('injects target group_ids into Sub2API conversion results', () => {
+    const result = convertPayload(
+      [{
+        filename: 'tokens.json',
+        text: JSON.stringify([{ email: 'a@example.com' }, { email: 'b@example.com' }])
+      }],
+      { ...options, inputFormat: 'cpa', outputFormat: 'sub2api', targetGroupIds: [7, 7, 9, -1] }
+    )
+
+    expect((result.output as any).accounts.map((account: any) => account.group_ids)).toEqual([
+      [7, 9],
+      [7, 9]
+    ])
+  })
+
+  it('can attach group_ids to an existing Sub2API payload without mutating accounts', () => {
+    const payload = {
+      type: 'sub2api-data' as const,
+      version: 1 as const,
+      exported_at: '2026-05-23T00:00:00Z',
+      proxies: [],
+      accounts: [
+        { name: 'a', platform: 'openai' as const, type: 'oauth' as const, credentials: {}, concurrency: 3, priority: 50 }
+      ]
+    }
+
+    const attached = attachGroupIdsToPayload(payload, [3, 3, 5])
+    expect(attached.accounts[0].group_ids).toEqual([3, 5])
+    expect(payload.accounts[0].group_ids).toBeUndefined()
   })
 
   it('rejects invalid JSON and missing accessToken', () => {

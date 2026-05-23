@@ -1107,6 +1107,7 @@ export interface AdminDataAccount {
   rate_multiplier?: number | null
   expires_at?: number | null
   auto_pause_on_expired?: boolean
+  group_ids?: number[]
 }
 
 export interface AdminDataImportError {
