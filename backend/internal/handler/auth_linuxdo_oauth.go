@@ -324,6 +324,21 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 		redirectOAuthError(c, frontendCallback, "session_error", infraerrors.Reason(err), infraerrors.Message(err))
 		return
 	}
+	if compatEmailUser == nil && h.isInvitationCodeEnabled(c.Request.Context()) {
+		if err := h.createLinuxDoOAuthInvitationPendingSession(
+			c,
+			identityKey,
+			email,
+			redirectTo,
+			browserSessionKey,
+			upstreamClaims,
+		); err != nil {
+			redirectOAuthError(c, frontendCallback, "session_error", "failed to continue oauth registration", "")
+			return
+		}
+		redirectToFrontendCallback(c, frontendCallback)
+		return
+	}
 	if compatEmailUser == nil && !h.isForceEmailOnThirdPartySignup(c.Request.Context()) {
 		tokenPair, err := h.loginOrRegisterLinuxDoSyntheticUser(c.Request.Context(), identityKey, email, username, displayName, avatarURL, upstreamClaims)
 		if err != nil {
@@ -488,6 +503,48 @@ func (h *AuthHandler) createLinuxDoOAuthChoicePendingSession(
 		UpstreamIdentityClaims: upstreamClaims,
 		CompletionResponse:     completionResponse,
 	})
+}
+
+func (h *AuthHandler) createLinuxDoOAuthInvitationPendingSession(
+	c *gin.Context,
+	identity service.PendingAuthIdentityKey,
+	resolvedEmail string,
+	redirectTo string,
+	browserSessionKey string,
+	upstreamClaims map[string]any,
+) error {
+	completionResponse := map[string]any{
+		"error":                     "invitation_required",
+		"choice_reason":             "invitation_required",
+		"invitation_required":       true,
+		"adoption_required":         true,
+		"create_account_allowed":    true,
+		"existing_account_bindable": false,
+		"force_email_on_signup":     false,
+		"email":                     strings.TrimSpace(resolvedEmail),
+		"resolved_email":            strings.TrimSpace(resolvedEmail),
+		"redirect":                  strings.TrimSpace(redirectTo),
+	}
+	// LinuxDo 新用户在邀请码开启时只补邀请码和资料同步选择，不进入邮箱、密码、验证码创建页。
+	return h.createOAuthPendingSession(c, oauthPendingSessionPayload{
+		Intent:                 oauthIntentLogin,
+		Identity:               identity,
+		ResolvedEmail:          resolvedEmail,
+		RedirectTo:             redirectTo,
+		BrowserSessionKey:      browserSessionKey,
+		UpstreamIdentityClaims: upstreamClaims,
+		CompletionResponse:     completionResponse,
+	})
+}
+
+func (h *AuthHandler) isInvitationCodeEnabled(ctx context.Context) bool {
+	if h != nil && h.settingSvc != nil {
+		return h.settingSvc.IsInvitationCodeEnabled(ctx)
+	}
+	if h != nil && h.authService != nil {
+		return h.authService.IsInvitationCodeEnabled(ctx)
+	}
+	return false
 }
 
 type completeLinuxDoOAuthRequest struct {
