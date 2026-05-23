@@ -412,6 +412,80 @@ func TestLinuxDoOAuthCallbackCreatesLoginPendingSessionForExistingIdentityUser(t
 	require.Nil(t, completion["error"])
 }
 
+func TestLinuxDoOAuthCallbackUsesExistingSyntheticUserBeforeInvitation(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/token":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"linuxdo-access","token_type":"Bearer","expires_in":3600}`))
+		case "/userinfo":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"160412","username":"wumu","name":"星辰","avatar_url":"https://cdn.example/wumu.png"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	handler, client := newLinuxDoOAuthHandlerAndClient(t, true, config.LinuxDoConnectConfig{
+		Enabled:             true,
+		ClientID:            "linuxdo-client",
+		ClientSecret:        "linuxdo-secret",
+		AuthorizeURL:        upstream.URL + "/authorize",
+		TokenURL:            upstream.URL + "/token",
+		UserInfoURL:         upstream.URL + "/userinfo",
+		Scopes:              "read",
+		RedirectURL:         "https://api.example.com/api/v1/auth/oauth/linuxdo/callback",
+		FrontendRedirectURL: "/auth/linuxdo/callback",
+		TokenAuthMethod:     "client_secret_post",
+		UsePKCE:             true,
+	})
+	t.Cleanup(func() { _ = client.Close() })
+
+	ctx := context.Background()
+	existingUser, err := client.User.Create().
+		SetEmail(linuxDoSyntheticEmail("160412")).
+		SetUsername("wumu").
+		SetPasswordHash("hash").
+		SetRole(service.RoleUser).
+		SetStatus(service.StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/linuxdo/callback?code=code-existing-synthetic&state=state-existing-synthetic", nil)
+	req.AddCookie(encodedCookie(linuxDoOAuthStateCookieName, "state-existing-synthetic"))
+	req.AddCookie(encodedCookie(linuxDoOAuthRedirectCookie, "/dashboard"))
+	req.AddCookie(encodedCookie(linuxDoOAuthVerifierCookie, "verifier-existing-synthetic"))
+	req.AddCookie(encodedCookie(linuxDoOAuthIntentCookieName, oauthIntentLogin))
+	req.AddCookie(encodedCookie(oauthPendingBrowserCookieName, "browser-existing-synthetic"))
+	c.Request = req
+
+	handler.LinuxDoOAuthCallback(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	require.Equal(t, "/auth/linuxdo/callback", recorder.Header().Get("Location"))
+
+	sessionCookie := findCookie(recorder.Result().Cookies(), oauthPendingSessionCookieName)
+	require.NotNil(t, sessionCookie)
+
+	session, err := client.PendingAuthSession.Query().
+		Where(pendingauthsession.SessionTokenEQ(decodeCookieValueForTest(t, sessionCookie.Value))).
+		Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, oauthIntentLogin, session.Intent)
+	require.NotNil(t, session.TargetUserID)
+	require.Equal(t, existingUser.ID, *session.TargetUserID)
+	require.Equal(t, linuxDoSyntheticEmail("160412"), session.ResolvedEmail)
+
+	completion, ok := session.LocalFlowState[oauthCompletionResponseKey].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "/dashboard", completion["redirect"])
+	require.Nil(t, completion["error"])
+	require.NotEqual(t, true, completion["invitation_required"])
+}
+
 func TestLinuxDoOAuthCallbackRejectsDisabledExistingIdentityUser(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

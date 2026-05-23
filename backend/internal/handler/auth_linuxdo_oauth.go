@@ -319,6 +319,33 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 		return
 	}
 
+	syntheticEmailUser, err := h.findLinuxDoSyntheticEmailUser(c.Request.Context(), email)
+	if err != nil {
+		redirectOAuthError(c, frontendCallback, "session_error", infraerrors.Reason(err), infraerrors.Message(err))
+		return
+	}
+	if syntheticEmailUser != nil {
+		// 历史 LinuxDo 账号可能已经以 synthetic email 存在，但缺少 auth_identities 绑定。
+		// 这类账号是“已有用户登录”，不能因为全站邀请码开启而再次要求邀请码。
+		if err := h.createOAuthPendingSession(c, oauthPendingSessionPayload{
+			Intent:                 oauthIntentLogin,
+			Identity:               identityKey,
+			TargetUserID:           &syntheticEmailUser.ID,
+			ResolvedEmail:          syntheticEmailUser.Email,
+			RedirectTo:             redirectTo,
+			BrowserSessionKey:      browserSessionKey,
+			UpstreamIdentityClaims: upstreamClaims,
+			CompletionResponse: map[string]any{
+				"redirect": redirectTo,
+			},
+		}); err != nil {
+			redirectOAuthError(c, frontendCallback, "session_error", "failed to continue oauth login", "")
+			return
+		}
+		redirectToFrontendCallback(c, frontendCallback)
+		return
+	}
+
 	compatEmailUser, err := h.findLinuxDoCompatEmailUser(c.Request.Context(), compatEmail)
 	if err != nil {
 		redirectOAuthError(c, frontendCallback, "session_error", infraerrors.Reason(err), infraerrors.Message(err))
@@ -367,6 +394,14 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 	redirectToFrontendCallback(c, frontendCallback)
 }
 
+func (h *AuthHandler) findLinuxDoSyntheticEmailUser(ctx context.Context, email string) (*dbent.User, error) {
+	email = strings.TrimSpace(strings.ToLower(email))
+	if email == "" || !strings.HasSuffix(email, service.LinuxDoConnectSyntheticEmailDomain) {
+		return nil, nil
+	}
+	return h.findUserByNormalizedEmailForOAuth(ctx, email)
+}
+
 func (h *AuthHandler) loginOrRegisterLinuxDoSyntheticUser(
 	ctx context.Context,
 	identity service.PendingAuthIdentityKey,
@@ -412,6 +447,10 @@ func (h *AuthHandler) loginOrRegisterLinuxDoSyntheticUser(
 }
 
 func (h *AuthHandler) findLinuxDoCompatEmailUser(ctx context.Context, email string) (*dbent.User, error) {
+	return h.findLinuxDoCompatEmailUserWithSynthetic(ctx, email, false)
+}
+
+func (h *AuthHandler) findLinuxDoCompatEmailUserWithSynthetic(ctx context.Context, email string, allowSynthetic bool) (*dbent.User, error) {
 	client := h.entClient()
 	if client == nil {
 		return nil, infraerrors.ServiceUnavailable("PENDING_AUTH_NOT_READY", "pending auth service is not ready")
@@ -419,13 +458,20 @@ func (h *AuthHandler) findLinuxDoCompatEmailUser(ctx context.Context, email stri
 
 	email = strings.TrimSpace(strings.ToLower(email))
 	if email == "" ||
-		strings.HasSuffix(email, service.LinuxDoConnectSyntheticEmailDomain) ||
-		strings.HasSuffix(email, service.OIDCConnectSyntheticEmailDomain) ||
-		strings.HasSuffix(email, service.WeChatConnectSyntheticEmailDomain) ||
-		strings.HasSuffix(email, service.DingTalkConnectSyntheticEmailDomain) {
+		(!allowSynthetic && (strings.HasSuffix(email, service.LinuxDoConnectSyntheticEmailDomain) ||
+			strings.HasSuffix(email, service.OIDCConnectSyntheticEmailDomain) ||
+			strings.HasSuffix(email, service.WeChatConnectSyntheticEmailDomain) ||
+			strings.HasSuffix(email, service.DingTalkConnectSyntheticEmailDomain))) {
 		return nil, nil
 	}
+	return h.findUserByNormalizedEmailForOAuth(ctx, email)
+}
 
+func (h *AuthHandler) findUserByNormalizedEmailForOAuth(ctx context.Context, email string) (*dbent.User, error) {
+	client := h.entClient()
+	if client == nil {
+		return nil, infraerrors.ServiceUnavailable("PENDING_AUTH_NOT_READY", "pending auth service is not ready")
+	}
 	userEntity, err := client.User.Query().
 		Where(userNormalizedEmailPredicate(email)).
 		Order(dbent.Asc(dbuser.FieldID)).
