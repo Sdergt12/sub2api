@@ -1,46 +1,56 @@
 <template>
   <Transition name="gundam-boot-fade">
     <div v-if="visible" class="gundam-boot-overlay" role="status" aria-live="polite" @click="skip">
+      <div class="gundam-boot-bg"></div>
       <div class="gundam-boot-grid"></div>
       <div class="gundam-boot-noise"></div>
-      <div class="gundam-boot-radar" aria-hidden="true">
-        <span></span>
-        <span></span>
-        <span></span>
+      <div class="gundam-boot-door gundam-boot-door-left" aria-hidden="true"></div>
+      <div class="gundam-boot-door gundam-boot-door-right" aria-hidden="true"></div>
+      <div class="gundam-boot-hud" aria-hidden="true">
+        <span class="gundam-boot-hud-ring"></span>
+        <span class="gundam-boot-hud-axis"></span>
+        <span class="gundam-boot-hud-axis gundam-boot-hud-axis-y"></span>
       </div>
       <div class="gundam-boot-frame">
         <div class="gundam-boot-corners"></div>
         <div class="gundam-boot-rails" aria-hidden="true"></div>
+        <div class="gundam-boot-tag" aria-hidden="true">HGR-07 / MAINTENANCE</div>
         <div class="gundam-boot-unit" aria-hidden="true">
           <svg viewBox="0 0 260 220" class="gundam-boot-unit-svg">
-            <path d="M130 18l35 28 13 52 39 27-39 20-11 50H93l-11-50-39-20 39-27 13-52z" />
-            <path d="M93 70h74l-16 34h-42z" />
-            <path d="M109 122h42l-8 44h-26z" />
-            <path d="M76 145l-38 42m146-42l38 42M101 51l-34-24m92 24l34-24" />
+            <path d="M130 16l42 24 13 46 34 20-28 19-10 54-30 18h-42l-30-18-10-54-28-19 34-20 13-46z" />
+            <path d="M95 61h70l-10 40-25 16-25-16z" />
+            <path d="M85 130h90l-13 41-31 18-33-18z" />
+            <path d="M73 92l-42 20m156-20l42 20M92 40l-40-18m116 18l40-18M104 190l-21 22m73-22l21 22" />
+            <path d="M113 74h34M111 139h38M128 118v62" />
           </svg>
           <div class="gundam-boot-reticle"></div>
+          <div class="gundam-boot-unit-scan"></div>
         </div>
         <div class="gundam-boot-copy">
-          <p class="gundam-boot-kicker">MOBILE SUIT INTERFACE</p>
-          <h2>GUNDAM MODE</h2>
+          <p class="gundam-boot-kicker">MOBILE SUIT MAINTENANCE OS</p>
+          <h2>HANGAR BOOT</h2>
           <div class="gundam-boot-metrics">
             <div class="gundam-boot-status">
-              <span>HUD GRID</span>
-              <b>ONLINE</b>
+              <span>ARMOR LOCK</span>
+              <b>SEALED</b>
             </div>
             <div class="gundam-boot-status">
-              <span>RISK PANEL</span>
+              <span>POWER BUS</span>
+              <b>GREEN</b>
+            </div>
+            <div class="gundam-boot-status">
+              <span>RISK CORE</span>
+              <b>ARMED</b>
+            </div>
+            <div class="gundam-boot-status">
+              <span>DATA LINK</span>
               <b>SYNC</b>
-            </div>
-            <div class="gundam-boot-status">
-              <span>ACCOUNT BAY</span>
-              <b>READY</b>
             </div>
           </div>
           <div class="gundam-boot-bars" aria-hidden="true">
-            <i style="--boot-width: 78%"></i>
-            <i style="--boot-width: 92%"></i>
-            <i style="--boot-width: 64%"></i>
+            <i style="--boot-width: 86%"></i>
+            <i style="--boot-width: 96%"></i>
+            <i style="--boot-width: 72%"></i>
           </div>
         </div>
         <button class="gundam-boot-skip" type="button" @click.stop="skip">跳过</button>
@@ -73,7 +83,7 @@ watch(
     if (!nonce) return
     visible.value = true
     if (timer) clearTimeout(timer)
-    timer = setTimeout(skip, prefersReducedMotion() ? 450 : 1800)
+    timer = setTimeout(skip, prefersReducedMotion() ? 520 : 2100)
   }
 )
 </script>
