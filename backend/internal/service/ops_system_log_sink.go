@@ -26,7 +26,7 @@ type OpsSystemLogSinkHealth struct {
 }
 
 type OpsSystemLogSink struct {
-	opsRepo OpsRepository
+	opsRepo          OpsRepository
 	tokenRiskService *TokenRiskService
 
 	queue chan *logger.LogEvent
