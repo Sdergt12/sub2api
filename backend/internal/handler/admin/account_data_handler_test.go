@@ -44,6 +44,7 @@ type dataAccount struct {
 	ProxyKey    *string        `json:"proxy_key"`
 	Concurrency int            `json:"concurrency"`
 	Priority    int            `json:"priority"`
+	GroupIDs    []int64        `json:"group_ids"`
 }
 
 func setupAccountDataRouter() (*gin.Engine, *stubAdminService) {
@@ -110,6 +111,7 @@ func TestExportDataIncludesSecrets(t *testing.T) {
 			Concurrency: 3,
 			Priority:    50,
 			Status:      service.StatusDisabled,
+			GroupIDs:    []int64{7, 9},
 		},
 	}
 
@@ -127,6 +129,7 @@ func TestExportDataIncludesSecrets(t *testing.T) {
 	require.Equal(t, "pass", resp.Data.Proxies[0].Password)
 	require.Len(t, resp.Data.Accounts, 1)
 	require.Equal(t, "secret", resp.Data.Accounts[0].Credentials["token"])
+	require.Equal(t, []int64{7, 9}, resp.Data.Accounts[0].GroupIDs)
 }
 
 func TestExportDataWithoutProxies(t *testing.T) {
@@ -258,6 +261,7 @@ func TestImportDataReusesProxyAndSkipsDefaultGroup(t *testing.T) {
 					"proxy_key":   "socks5|1.2.3.4|1080|u|p",
 					"concurrency": 3,
 					"priority":    50,
+					"group_ids":   []int64{7, 7, 9},
 				},
 			},
 		},
@@ -274,4 +278,47 @@ func TestImportDataReusesProxyAndSkipsDefaultGroup(t *testing.T) {
 	require.Len(t, adminSvc.createdProxies, 0)
 	require.Len(t, adminSvc.createdAccounts, 1)
 	require.True(t, adminSvc.createdAccounts[0].SkipDefaultGroupBind)
+	require.Equal(t, []int64{7, 9}, adminSvc.createdAccounts[0].GroupIDs)
+}
+
+func TestImportDataRejectsInvalidGroupIDs(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+
+	dataPayload := map[string]any{
+		"data": map[string]any{
+			"type":    dataType,
+			"version": dataVersion,
+			"proxies": []map[string]any{},
+			"accounts": []map[string]any{
+				{
+					"name":        "acc",
+					"platform":    service.PlatformOpenAI,
+					"type":        service.AccountTypeOAuth,
+					"credentials": map[string]any{"token": "x"},
+					"concurrency": 3,
+					"priority":    50,
+					"group_ids":   []int64{0, -1},
+				},
+			},
+		},
+		"skip_default_group_bind": true,
+	}
+
+	body, _ := json.Marshal(dataPayload)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp struct {
+		Code int              `json:"code"`
+		Data DataImportResult `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.Equal(t, 1, resp.Data.AccountFailed)
+	require.Len(t, resp.Data.Errors, 1)
+	require.Contains(t, resp.Data.Errors[0].Message, "group_ids")
+	require.Len(t, adminSvc.createdAccounts, 0)
 }

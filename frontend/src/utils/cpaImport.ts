@@ -12,6 +12,7 @@ export interface CPASub2APIDataAccount {
   credentials: Record<string, unknown>
   concurrency: number
   priority: number
+  group_ids?: number[]
 }
 
 export interface CPASub2APIDataPayload {

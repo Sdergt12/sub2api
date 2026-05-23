@@ -109,6 +109,42 @@
         {{ t('admin.accounts.cpaPreview', cpaPreview) }}
       </div>
 
+      <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-700">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <label class="input-label mb-0">目标分组</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+              选中的分组会写入每条账号数据的 group_ids。
+            </p>
+          </div>
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            :disabled="groupsLoading"
+            @click="loadGroups"
+          >
+            {{ groupsLoading ? t('common.loading') : t('common.refresh') }}
+          </button>
+        </div>
+        <div v-if="groupsError" class="mt-3 text-sm text-red-600 dark:text-red-400">
+          {{ groupsError }}
+        </div>
+        <div v-else-if="groups.length === 0" class="mt-3 text-sm text-gray-500 dark:text-dark-400">
+          {{ groupsLoading ? t('common.loading') : '当前没有可选分组，导入时将不绑定额外分组。' }}
+        </div>
+        <div v-else class="mt-3 grid max-h-40 grid-cols-1 gap-2 overflow-auto pr-1 sm:grid-cols-2">
+          <label
+            v-for="group in groups"
+            :key="group.id"
+            class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition-colors hover:border-primary-300 hover:bg-primary-50 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-200 dark:hover:border-primary-700 dark:hover:bg-primary-900/20"
+          >
+            <input v-model="selectedGroupIds" type="checkbox" class="rounded border-gray-300" :value="group.id" />
+            <span class="min-w-0 flex-1 truncate">{{ group.name }}</span>
+            <span class="text-xs text-gray-400">{{ group.platform }}</span>
+          </label>
+        </div>
+      </div>
+
       <div
         v-if="result"
         class="space-y-2 rounded-xl border border-gray-200 p-4 dark:border-dark-700"
@@ -160,7 +196,8 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import { buildSub2APIDataFromCPA, type CPANameSource } from '@/utils/cpaImport'
-import type { AdminDataImportResult, AdminDataPayload } from '@/types'
+import { attachGroupIdsToPayload } from '@/utils/formatConverter'
+import type { AdminDataImportResult, AdminDataPayload, AdminGroup } from '@/types'
 
 interface Props {
   show: boolean
@@ -183,6 +220,10 @@ const importing = ref(false)
 const importMode = ref<ImportMode>('sub2api')
 const files = ref<File[]>([])
 const result = ref<AdminDataImportResult | null>(null)
+const groups = ref<AdminGroup[]>([])
+const groupsLoading = ref(false)
+const groupsError = ref('')
+const selectedGroupIds = ref<number[]>([])
 const cpaPreview = ref<{ files: number; accounts: number; name_source: string } | null>(null)
 const cpaOptions = reactive({
   platform: 'openai',
@@ -209,11 +250,15 @@ watch(
       files.value = []
       result.value = null
       cpaPreview.value = null
+      groupsError.value = ''
+      selectedGroupIds.value = []
+      void loadGroups()
       if (fileInput.value) {
         fileInput.value.value = ''
       }
     }
-  }
+  },
+  { immediate: true }
 )
 
 const openFilePicker = () => {
@@ -227,6 +272,18 @@ const setImportMode = (mode: ImportMode) => {
   cpaPreview.value = null
   if (fileInput.value) {
     fileInput.value.value = ''
+  }
+}
+
+async function loadGroups() {
+  groupsLoading.value = true
+  groupsError.value = ''
+  try {
+    groups.value = await adminAPI.groups.getAll()
+  } catch (error: any) {
+    groupsError.value = error?.message || '分组加载失败'
+  } finally {
+    groupsLoading.value = false
   }
 }
 
@@ -305,7 +362,7 @@ const handleImport = async () => {
     }
 
     const res = await adminAPI.accounts.importData({
-      data: dataPayload,
+      data: attachGroupIdsToPayload(dataPayload, selectedGroupIds.value),
       skip_default_group_bind: true
     })
 

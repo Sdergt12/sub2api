@@ -59,6 +59,7 @@ type DataAccount struct {
 	RateMultiplier     *float64       `json:"rate_multiplier,omitempty"`
 	ExpiresAt          *int64         `json:"expires_at,omitempty"`
 	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired,omitempty"`
+	GroupIDs           []int64        `json:"group_ids,omitempty"`
 }
 
 type DataImportRequest struct {
@@ -163,6 +164,7 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 			RateMultiplier:     acc.RateMultiplier,
 			ExpiresAt:          expiresAt,
 			AutoPauseOnExpired: &acc.AutoPauseOnExpired,
+			GroupIDs:           normalizeDataGroupIDs(acc.GroupIDs),
 		})
 	}
 
@@ -315,7 +317,7 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			Concurrency:          item.Concurrency,
 			Priority:             item.Priority,
 			RateMultiplier:       item.RateMultiplier,
-			GroupIDs:             nil,
+			GroupIDs:             normalizeDataGroupIDs(item.GroupIDs),
 			ExpiresAt:            item.ExpiresAt,
 			AutoPauseOnExpired:   item.AutoPauseOnExpired,
 			SkipDefaultGroupBind: skipDefaultGroupBind,
@@ -576,7 +578,31 @@ func validateDataAccount(item DataAccount) error {
 	if item.Priority < 0 {
 		return errors.New("priority must be >= 0")
 	}
+	for _, groupID := range item.GroupIDs {
+		if groupID <= 0 {
+			return errors.New("group_ids must contain positive ids")
+		}
+	}
 	return nil
+}
+
+func normalizeDataGroupIDs(groupIDs []int64) []int64 {
+	if len(groupIDs) == 0 {
+		return nil
+	}
+	seen := make(map[int64]struct{}, len(groupIDs))
+	normalized := make([]int64, 0, len(groupIDs))
+	for _, groupID := range groupIDs {
+		if groupID <= 0 {
+			continue
+		}
+		if _, ok := seen[groupID]; ok {
+			continue
+		}
+		seen[groupID] = struct{}{}
+		normalized = append(normalized, groupID)
+	}
+	return normalized
 }
 
 func defaultProxyName(name string) string {

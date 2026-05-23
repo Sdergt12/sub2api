@@ -1,4 +1,5 @@
 import { buildSub2APIDataFromCPA, type CPABuildOptions, type CPAFileInput } from './cpaImport'
+import type { AdminDataPayload } from '@/types'
 
 export type ConverterInputFormat = 'gpt-session' | 'cpa' | 'sub2api'
 export type ConverterOutputFormat = 'cpa' | 'sub2api'
@@ -11,6 +12,7 @@ export interface ConversionInput {
 export interface ConversionOptions extends CPABuildOptions {
   inputFormat: ConverterInputFormat
   outputFormat: ConverterOutputFormat
+  targetGroupIds?: number[]
 }
 
 export interface ConversionIssue {
@@ -71,6 +73,46 @@ const sensitiveKeys = new Set([
   'cookie',
   'password'
 ])
+
+export function normalizeImportGroupIds(groupIds: readonly number[] = []): number[] {
+  const seen = new Set<number>()
+  const normalized: number[] = []
+  for (const value of groupIds) {
+    const groupID = Number(value)
+    if (!Number.isInteger(groupID) || groupID <= 0 || seen.has(groupID)) continue
+    seen.add(groupID)
+    normalized.push(groupID)
+  }
+  return normalized
+}
+
+export function attachGroupIdsToPayload(payload: AdminDataPayload, groupIds: readonly number[] = []): AdminDataPayload {
+  const normalized = normalizeImportGroupIds(groupIds)
+  if (normalized.length === 0) return payload
+
+  // 分组是账号级导入属性，统一在前端注入到每个账号，后端继续复用现有分组校验。
+  return {
+    ...payload,
+    accounts: payload.accounts.map((account) => ({
+      ...account,
+      group_ids: normalized
+    }))
+  }
+}
+
+export function isSub2APIDataPayload(payload: unknown): payload is AdminDataPayload {
+  if (!isPlainObject(payload) || !Array.isArray(payload.accounts)) {
+    return false
+  }
+  return true
+}
+
+function asSub2APIDataPayload(payload: unknown): AdminDataPayload {
+  if (!isSub2APIDataPayload(payload)) {
+    throw new Error('转换结果不是有效的 Sub2API 导入数据')
+  }
+  return payload
+}
 
 function parseJSON(text: string, filename: string): unknown {
   try {
@@ -499,12 +541,13 @@ export function convertPayload(inputs: ConversionInput[], options: ConversionOpt
   if (options.inputFormat === 'sub2api') {
     const payload = parsed[0].data
     const record = isPlainObject(payload) ? payload : {}
+    const output = attachGroupIdsToPayload(asSub2APIDataPayload(record), options.targetGroupIds)
     const accounts = Array.isArray(record.accounts) ? record.accounts.length : 0
     return {
-      output: record,
+      output,
       accountCount: accounts,
       fileCount: parsed.length,
-      sensitive: containsSensitiveValue(record),
+      sensitive: containsSensitiveValue(output),
       detectedFormat: 'Sub2API',
       previewAccounts: [],
       issues: []
@@ -538,13 +581,14 @@ export function convertPayload(inputs: ConversionInput[], options: ConversionOpt
       parsed.map((item) => ({ filename: item.filename, data: item.data })) as CPAFileInput[],
       options
     )
+    const outputWithGroups = attachGroupIdsToPayload(output as AdminDataPayload, options.targetGroupIds)
     return {
-      output,
-      accountCount: output.accounts.length,
+      output: outputWithGroups,
+      accountCount: outputWithGroups.accounts.length,
       fileCount: parsed.length,
-      sensitive: containsSensitiveValue(output),
+      sensitive: containsSensitiveValue(outputWithGroups),
       detectedFormat: 'CPA',
-      previewAccounts: output.accounts.map((account) => ({
+      previewAccounts: outputWithGroups.accounts.map((account) => ({
         name: account.name,
         email: firstNonEmpty(account.credentials.email),
         account_id: firstNonEmpty(account.credentials.account_id, account.credentials.chatgpt_account_id),
@@ -568,7 +612,7 @@ export function convertPayload(inputs: ConversionInput[], options: ConversionOpt
       ? converted.length === 1
         ? converted[0].cpa
         : converted.map((item) => item.cpa)
-      : buildSub2apiDocument(converted, now)
+      : attachGroupIdsToPayload(buildSub2apiDocument(converted, now) as unknown as AdminDataPayload, options.targetGroupIds)
 
   return {
     output,
