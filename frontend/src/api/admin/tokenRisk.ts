@@ -51,6 +51,38 @@ export interface TokenRiskAction {
   metadata?: Record<string, unknown>
 }
 
+export interface TokenRiskRelatedContentLog {
+  id: number
+  created_at: string
+  request_id: string
+  user_id?: number
+  api_key_id?: number
+  endpoint: string
+  provider: string
+  model: string
+  action: string
+  flagged: boolean
+  highest_category: string
+  highest_score: number
+  input_excerpt: string
+  violation_count: number
+  auto_banned: boolean
+}
+
+export interface TokenRiskRelatedActivity {
+  count_5m: number
+  count_1h: number
+  count_24h: number
+  distinct_ip_24h: number
+}
+
+export interface TokenRiskHumanExplanation {
+  summary: string
+  reasons: string[]
+  recommended_next_steps: string[]
+  content_availability: string
+}
+
 export interface TokenRiskSubjectStat {
   subject: string
   user_id?: number
@@ -103,6 +135,9 @@ export interface TokenRiskEventQuery {
 export interface TokenRiskEventDetail {
   event: TokenRiskEvent
   actions: TokenRiskAction[]
+  related_content_logs: TokenRiskRelatedContentLog[]
+  related_activity: TokenRiskRelatedActivity
+  human_explanation: TokenRiskHumanExplanation
 }
 
 export interface TokenRiskActionRequest {
