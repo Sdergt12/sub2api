@@ -28,6 +28,7 @@ type TokenRiskRepository interface {
 	UpsertTokenRiskEvent(ctx context.Context, event *TokenRiskEvent) (*TokenRiskEvent, error)
 	ListTokenRiskEvents(ctx context.Context, filter TokenRiskEventFilter) ([]*TokenRiskEvent, int64, error)
 	GetTokenRiskEvent(ctx context.Context, id int64) (*TokenRiskEvent, error)
+	ListRelatedContentModerationLogs(ctx context.Context, event *TokenRiskEvent, limit int) ([]*TokenRiskRelatedContentLog, error)
 	UpdateTokenRiskEventStatus(ctx context.Context, id int64, status string, falsePositive bool, actorUserID int64) error
 	CreateTokenRiskAction(ctx context.Context, action *TokenRiskAction) (*TokenRiskAction, error)
 	ListTokenRiskActions(ctx context.Context, eventID int64) ([]*TokenRiskAction, error)
@@ -82,6 +83,46 @@ type TokenRiskAction struct {
 	Note        string         `json:"note"`
 	Result      string         `json:"result"`
 	Metadata    map[string]any `json:"metadata,omitempty"`
+}
+
+type TokenRiskEventDetail struct {
+	Event              *TokenRiskEvent               `json:"event"`
+	Actions            []*TokenRiskAction            `json:"actions"`
+	RelatedContentLogs []*TokenRiskRelatedContentLog `json:"related_content_logs"`
+	RelatedActivity    TokenRiskRelatedActivity      `json:"related_activity"`
+	HumanExplanation   TokenRiskHumanExplanation     `json:"human_explanation"`
+}
+
+type TokenRiskRelatedActivity struct {
+	Count5m       int64 `json:"count_5m"`
+	Count1h       int64 `json:"count_1h"`
+	Count24h      int64 `json:"count_24h"`
+	DistinctIP24h int64 `json:"distinct_ip_24h"`
+}
+
+type TokenRiskHumanExplanation struct {
+	Summary              string   `json:"summary"`
+	Reasons              []string `json:"reasons"`
+	RecommendedNextSteps []string `json:"recommended_next_steps"`
+	ContentAvailability  string   `json:"content_availability"`
+}
+
+type TokenRiskRelatedContentLog struct {
+	ID              int64     `json:"id"`
+	CreatedAt       time.Time `json:"created_at"`
+	RequestID       string    `json:"request_id"`
+	UserID          *int64    `json:"user_id,omitempty"`
+	APIKeyID        *int64    `json:"api_key_id,omitempty"`
+	Endpoint        string    `json:"endpoint"`
+	Provider        string    `json:"provider"`
+	Model           string    `json:"model"`
+	Action          string    `json:"action"`
+	Flagged         bool      `json:"flagged"`
+	HighestCategory string    `json:"highest_category"`
+	HighestScore    float64   `json:"highest_score"`
+	InputExcerpt    string    `json:"input_excerpt"`
+	ViolationCount  int       `json:"violation_count"`
+	AutoBanned      bool      `json:"auto_banned"`
 }
 
 type TokenRiskWatchlistItem struct {
@@ -204,7 +245,14 @@ func (s *TokenRiskService) ListEvents(ctx context.Context, filter TokenRiskEvent
 	if s == nil || s.repo == nil {
 		return nil, 0, nil
 	}
-	return s.repo.ListTokenRiskEvents(ctx, filter)
+	items, total, err := s.repo.ListTokenRiskEvents(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, item := range items {
+		enrichTokenRiskEventRuntime(item)
+	}
+	return items, total, nil
 }
 
 func (s *TokenRiskService) GetEvent(ctx context.Context, id int64) (*TokenRiskEvent, []*TokenRiskAction, error) {
@@ -220,6 +268,34 @@ func (s *TokenRiskService) GetEvent(ctx context.Context, id int64) (*TokenRiskEv
 		return nil, nil, err
 	}
 	return event, actions, nil
+}
+
+func (s *TokenRiskService) GetEventDetail(ctx context.Context, id int64) (*TokenRiskEventDetail, error) {
+	event, actions, err := s.GetEvent(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	enrichTokenRiskEventRuntime(event)
+
+	relatedLogs := []*TokenRiskRelatedContentLog{}
+	if s != nil && s.repo != nil {
+		relatedLogs, err = s.repo.ListRelatedContentModerationLogs(ctx, event, 5)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &TokenRiskEventDetail{
+		Event:              event,
+		Actions:            actions,
+		RelatedContentLogs: relatedLogs,
+		RelatedActivity: TokenRiskRelatedActivity{
+			Count5m:       event.Count5m,
+			Count1h:       event.Count1h,
+			Count24h:      event.Count24h,
+			DistinctIP24h: event.DistinctIP24h,
+		},
+		HumanExplanation: buildTokenRiskHumanExplanation(event, relatedLogs),
+	}, nil
 }
 
 func (s *TokenRiskService) Summary(ctx context.Context, since time.Time) (*TokenRiskSummary, error) {
@@ -341,7 +417,7 @@ func (s *TokenRiskService) ApplyAction(ctx context.Context, eventID int64, actor
 		_, err = s.announcementService.CreateDirect(ctx, &CreateDirectAnnouncementInput{
 			TargetUserID: *event.UserID,
 			Title:        title,
-			Content:      buildTokenRiskNoticeContent(event),
+			Content:      buildTokenRiskNoticeContentSafe(event),
 			NotifyMode:   "popup",
 			ActorID:      &actorUserID,
 		})
@@ -432,7 +508,11 @@ func BuildTokenRiskEventFromOpsLog(log *OpsSystemLog, ctx TokenRiskAnalyzeContex
 		add("embedded_bypass", "embedded_auth_bypass", 45)
 	}
 	if strings.Contains(normalizedFailure, "insufficient_balance") {
-		add("insufficient_balance_abuse", "insufficient_balance", 30)
+		if ctx.Count5m >= 5 || ctx.Count1h >= 20 {
+			add("insufficient_balance_abuse", "insufficient_balance_repeated", 30)
+		} else {
+			add("balance_or_reward_abuse", "insufficient_balance_single", 15)
+		}
 	}
 	if ctx.Count5m >= 30 || ctx.Count1h >= 120 {
 		add("high_frequency", "high_frequency_window", 35)
@@ -501,6 +581,28 @@ func BuildTokenRiskEventFromOpsLog(log *OpsSystemLog, ctx TokenRiskAnalyzeContex
 	return event
 }
 
+func enrichTokenRiskEventRuntime(event *TokenRiskEvent) {
+	if event == nil {
+		return
+	}
+	if containsString(event.MatchedRules, "insufficient_balance") && !containsString(event.MatchedRules, "insufficient_balance_repeated") {
+		event.MatchedRules = replaceString(event.MatchedRules, "insufficient_balance", "insufficient_balance_single")
+	}
+	repeatedInsufficientBalance := event.Count5m >= 5 || event.Count1h >= 20
+	if containsString(event.MatchedRules, "insufficient_balance_single") && repeatedInsufficientBalance {
+		event.RiskCategories = appendUniqueString(removeString(event.RiskCategories, "balance_or_reward_abuse"), "insufficient_balance_abuse")
+		event.MatchedRules = appendUniqueString(removeString(event.MatchedRules, "insufficient_balance_single"), "insufficient_balance_repeated")
+		if event.RiskScore < 60 {
+			event.RiskScore = 60
+		}
+		event.RiskLevel = riskLevelFromScore(event.RiskScore)
+	}
+	event.RiskCategories = uniqueSortedStrings(event.RiskCategories)
+	event.MatchedRules = uniqueSortedStrings(event.MatchedRules)
+	event.RecommendedActions = recommendedActions(event.RiskLevel, event.RiskCategories)
+	event.Explanation = buildRiskExplanation(event.RiskCategories, event.MatchedRules, event.RiskScore)
+}
+
 func riskLevelFromScore(score int) string {
 	switch {
 	case score >= 85:
@@ -518,6 +620,8 @@ func recommendedActions(level string, categories []string) []string {
 	actions := map[string]bool{"mark_handled": true, "mark_false_positive": true}
 	for _, c := range categories {
 		switch c {
+		case "balance_or_reward_abuse":
+			actions["send_reminder"] = true
 		case "permission_violation", "admin_api_probe", "auth_forged", "embedded_bypass":
 			actions["watch_user"] = true
 			actions["force_relogin"] = true
@@ -536,14 +640,83 @@ func recommendedActions(level string, categories []string) []string {
 }
 
 func buildRiskExplanation(categories, rules []string, score int) string {
-	return fmt.Sprintf("risk_score=%d; categories=%s; rules=%s", score, strings.Join(categories, ","), strings.Join(rules, ","))
+	return fmt.Sprintf("风险分 %d；分类：%s；规则：%s", score, strings.Join(localizeTokenRiskList(categories, tokenRiskCategoryLabels), "、"), strings.Join(localizeTokenRiskList(rules, tokenRiskRuleLabels), "、"))
 }
 
-func buildTokenRiskNoticeContent(event *TokenRiskEvent) string {
+func buildTokenRiskHumanExplanation(event *TokenRiskEvent, contentLogs []*TokenRiskRelatedContentLog) TokenRiskHumanExplanation {
+	if event == nil {
+		return TokenRiskHumanExplanation{}
+	}
+	summary := fmt.Sprintf("%s %s 返回 HTTP %d，主体 %s。", tokenRiskFirstNonEmpty(event.Method, "-"), tokenRiskFirstNonEmpty(event.Path, "-"), event.StatusCode, tokenRiskSubjectSummary(event))
+	if event.StatusCode == 0 {
+		summary = fmt.Sprintf("%s %s 被记录为 %s，主体 %s。", tokenRiskFirstNonEmpty(event.Method, "-"), tokenRiskFirstNonEmpty(event.Path, "-"), tokenRiskFirstNonEmpty(event.Result, "异常"), tokenRiskSubjectSummary(event))
+	}
+
+	reasons := []string{fmt.Sprintf("风险分 %d，等级 %s。", event.RiskScore, tokenRiskLevelLabel(event.RiskLevel))}
+	for _, category := range event.RiskCategories {
+		if label := tokenRiskCategoryLabels[category]; label != "" {
+			reasons = append(reasons, label)
+		}
+	}
+	if event.Count5m > 0 || event.Count1h > 0 || event.Count24h > 0 {
+		reasons = append(reasons, fmt.Sprintf("同主体近期频率：5 分钟 %d 次，1 小时 %d 次，24 小时 %d 次，24 小时来源 IP %d 个。", event.Count5m, event.Count1h, event.Count24h, event.DistinctIP24h))
+	}
+	if event.FailureReason != "" {
+		reasons = append(reasons, "失败原因："+event.FailureReason)
+	}
+
+	contentAvailability := "该事件没有可关联的内容审核摘要。/v1/models 等无正文接口本身不会产生 prompt 内容；历史未记录的请求内容无法恢复。"
+	if len(contentLogs) > 0 {
+		contentAvailability = fmt.Sprintf("找到 %d 条相关内容审核记录，仅展示脱敏摘要、分类和分数，不展示完整请求原文。", len(contentLogs))
+	}
+	return TokenRiskHumanExplanation{
+		Summary:              summary,
+		Reasons:              uniqueOrderedStrings(reasons),
+		RecommendedNextSteps: recommendedStepTexts(event),
+		ContentAvailability:  contentAvailability,
+	}
+}
+
+func buildTokenRiskNoticeContentSafe(event *TokenRiskEvent) string {
 	if event == nil {
 		return "系统检测到账户存在异常使用风险，请检查近期操作。"
 	}
-	return fmt.Sprintf("系统检测到账户近期存在异常使用风险，分类：%s，路径：%s。为保护账户安全，请确认 API key/token 未被共享或泄露。", strings.Join(event.RiskCategories, ","), event.Path)
+	return fmt.Sprintf("系统检测到账户近期存在异常使用风险。请求：%s %s；风险：%s。请确认 API key/token 未被共享或泄露。", event.Method, event.Path, strings.Join(localizeTokenRiskList(event.RiskCategories, tokenRiskCategoryLabels), "、"))
+}
+
+func recommendedStepTexts(event *TokenRiskEvent) []string {
+	if event == nil {
+		return nil
+	}
+	steps := []string{}
+	if containsString(event.MatchedRules, "insufficient_balance_single") || containsString(event.RiskCategories, "balance_or_reward_abuse") {
+		steps = append(steps, "先检查用户余额、API key 权限、分组和模型权限；单次失败通常是配置或余额问题。")
+	}
+	if containsString(event.RiskCategories, "insufficient_balance_abuse") {
+		steps = append(steps, "余额不足仍持续重试，检查客户端重试策略；必要时观察或暂停该 API key。")
+	}
+	if containsString(event.RiskCategories, "permission_violation") {
+		steps = append(steps, "核对该 token/API key 是否有访问该接口、分组或模型的权限。")
+	}
+	if containsString(event.RiskCategories, "admin_api_probe") {
+		steps = append(steps, "普通主体触达管理接口，优先观察用户并检查是否存在越权探测。")
+	}
+	if containsString(event.RiskCategories, "high_frequency") {
+		steps = append(steps, "请求频率异常，检查客户端循环重试、脚本调用或共享 key。")
+	}
+	if containsString(event.RiskCategories, "api_key_sharing") {
+		steps = append(steps, "同一 API key 出现多来源 IP，建议确认是否被共享、倒卖或泄露。")
+	}
+	if containsString(event.RiskCategories, "embedded_bypass") {
+		steps = append(steps, "embedded 鉴权异常，检查 k、token、src_host 和入口来源。")
+	}
+	if containsString(event.RiskCategories, "grey_industry") {
+		steps = append(steps, "疑似敏感业务风险，只查看脱敏摘要和分类，必要时发送警告并加入观察。")
+	}
+	if len(steps) == 0 {
+		steps = append(steps, "先查看同用户、同 IP、同 token hash 的历史行为，再决定标记已处理、误报或观察。")
+	}
+	return uniqueOrderedStrings(steps)
 }
 
 func mapKeys(input map[string]bool) []string {
@@ -554,6 +727,166 @@ func mapKeys(input map[string]bool) []string {
 		}
 	}
 	sort.Strings(out)
+	return out
+}
+
+var tokenRiskCategoryLabels = map[string]string{
+	"auth_invalid":               "鉴权无效：Authorization 头、token 或 API key 无法通过校验。",
+	"auth_expired":               "token 已过期：需要用户重新登录或重新生成凭据。",
+	"auth_forged":                "疑似伪造或篡改：token 结构、签名或形态异常。",
+	"permission_violation":       "权限不足：当前主体无权访问该接口、分组、模型或资源。",
+	"admin_api_probe":            "管理接口探测：普通主体访问管理接口或敏感后台路径。",
+	"high_frequency":             "高频请求：同主体在短时间窗口内请求次数异常。",
+	"batch_register":             "注册相关异常：请求触达注册、邀请或兑换相关路径。",
+	"registrar_abuse":            "注册机相关异常：请求触达注册机或批量注册相关路径。",
+	"config_tamper":              "敏感配置操作：请求触达设置、配置或风控管理路径。",
+	"balance_or_reward_abuse":    "余额/权限异常：可能是余额不足、分组不可用或奖励/余额相关操作异常。",
+	"game_abuse":                 "游戏中心风险：请求触达游戏、领奖或积分奖励路径。",
+	"embedded_bypass":            "embedded 绕过风险：嵌入页鉴权参数异常或疑似绕过。",
+	"api_key_sharing":            "API key 共享风险：同一 key 在多个来源 IP/UA 使用。",
+	"adult_content":              "疑似色情内容风险：仅展示脱敏摘要和分类，不展示原文。",
+	"grey_industry":              "疑似灰产业务风险：仅展示脱敏摘要和分类，不展示原文。",
+	"abnormal_geo_or_ua":         "来源环境异常：IP、地区或 User-Agent 出现异常变化。",
+	"insufficient_balance_abuse": "余额不足持续重试：余额不足后仍高频调用，可能是客户端异常或 key 被滥用。",
+	"suspicious_path_scan":       "敏感路径扫描：请求命中常见扫描、调试或后台探测路径。",
+}
+
+var tokenRiskRuleLabels = map[string]string{
+	"invalid_authorization_header":     "鉴权头无效",
+	"expired_token":                    "token 已过期",
+	"token_signature_or_shape_invalid": "token 签名或结构异常",
+	"permission_denied":                "权限被拒绝",
+	"non_admin_token_admin_path":       "非管理员主体访问管理路径",
+	"admin_sensitive_path":             "管理敏感路径",
+	"registration_related_path":        "注册/邀请相关路径",
+	"registrar_related_path":           "注册机相关路径",
+	"sensitive_config_path":            "敏感配置路径",
+	"balance_reward_path":              "余额/奖励相关路径",
+	"game_reward_path":                 "游戏/领奖相关路径",
+	"embedded_auth_bypass":             "embedded 鉴权绕过",
+	"insufficient_balance_single":      "单次余额不足",
+	"insufficient_balance_repeated":    "余额不足持续重试",
+	"high_frequency_window":            "短时间高频",
+	"multi_ip_api_key_usage":           "多 IP 使用同一 API key",
+	"sensitive_path_scan":              "敏感路径扫描",
+	"sensitive_business_keyword":       "敏感业务关键词",
+	"token_audit_observed":             "Token 审计观察",
+}
+
+func localizeTokenRiskList(values []string, labels map[string]string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if label := labels[value]; label != "" {
+			out = append(out, label)
+		} else {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func tokenRiskLevelLabel(level string) string {
+	switch level {
+	case TokenRiskLevelCritical:
+		return "严重"
+	case TokenRiskLevelHigh:
+		return "高"
+	case TokenRiskLevelMedium:
+		return "中"
+	default:
+		return "低"
+	}
+}
+
+func tokenRiskSubjectSummary(event *TokenRiskEvent) string {
+	if event == nil {
+		return "-"
+	}
+	if event.APIKeySummary != "" {
+		return "API key " + event.APIKeySummary
+	}
+	if event.TokenPrefix != "" || event.TokenSuffix != "" {
+		return strings.Trim(event.TokenPrefix+"..."+event.TokenSuffix, ".")
+	}
+	if event.TokenHash != "" {
+		return "hash=" + truncateTokenRiskString(event.TokenHash, 12) + "..."
+	}
+	return "-"
+}
+
+func tokenRiskFirstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func replaceString(values []string, old string, replacement string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value == old {
+			out = append(out, replacement)
+		} else {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func removeString(values []string, remove string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != remove {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func appendUniqueString(values []string, value string) []string {
+	if value == "" || containsString(values, value) {
+		return values
+	}
+	return append(values, value)
+}
+
+func uniqueSortedStrings(values []string) []string {
+	seen := map[string]bool{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			seen[value] = true
+		}
+	}
+	return mapKeys(seen)
+}
+
+func uniqueOrderedStrings(values []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
 	return out
 }
 

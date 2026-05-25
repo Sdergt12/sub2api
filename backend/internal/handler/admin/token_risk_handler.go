@@ -91,12 +91,12 @@ func (h *OpsHandler) GetTokenRiskEvent(c *gin.Context) {
 		response.BadRequest(c, "Invalid event id")
 		return
 	}
-	event, actions, err := svc.GetEvent(c.Request.Context(), id)
+	detail, err := svc.GetEventDetail(c.Request.Context(), id)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, gin.H{"event": event, "actions": actions})
+	response.Success(c, detail)
 }
 
 func (h *OpsHandler) CreateTokenRiskAction(c *gin.Context) {

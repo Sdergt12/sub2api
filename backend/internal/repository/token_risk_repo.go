@@ -152,6 +152,97 @@ WHERE e.id = $1`
 	return scanTokenRiskEvent(row)
 }
 
+func (r *tokenRiskRepository) ListRelatedContentModerationLogs(ctx context.Context, event *service.TokenRiskEvent, limit int) ([]*service.TokenRiskRelatedContentLog, error) {
+	if r == nil || r.db == nil || event == nil {
+		return nil, nil
+	}
+	if limit <= 0 || limit > 20 {
+		limit = 5
+	}
+	clauses, args := buildRelatedContentModerationLogMatchClauses(event)
+	if len(clauses) == 0 {
+		return []*service.TokenRiskRelatedContentLog{}, nil
+	}
+	args = append(args, event.CreatedAt.Add(-5*time.Minute), event.CreatedAt.Add(5*time.Minute), limit)
+	query := `
+SELECT
+  l.id, l.created_at, l.request_id, l.user_id, l.api_key_id, l.endpoint, l.provider, l.model,
+  l.action, l.flagged, l.highest_category, l.highest_score, l.input_excerpt,
+  l.violation_count, l.auto_banned
+FROM content_moderation_logs l
+WHERE (` + strings.Join(clauses, " OR ") + `)
+  AND l.created_at BETWEEN $` + itoa(len(args)-2) + ` AND $` + itoa(len(args)-1) + `
+ORDER BY
+  CASE WHEN l.request_id <> '' THEN 0 ELSE 1 END,
+  ABS(EXTRACT(EPOCH FROM (l.created_at - $` + itoa(len(args)-2) + `::timestamptz))),
+  l.id DESC
+LIMIT $` + itoa(len(args))
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := []*service.TokenRiskRelatedContentLog{}
+	for rows.Next() {
+		item := &service.TokenRiskRelatedContentLog{}
+		var userID, apiKeyID sql.NullInt64
+		if err := rows.Scan(
+			&item.ID, &item.CreatedAt, &item.RequestID, &userID, &apiKeyID, &item.Endpoint, &item.Provider, &item.Model,
+			&item.Action, &item.Flagged, &item.HighestCategory, &item.HighestScore, &item.InputExcerpt,
+			&item.ViolationCount, &item.AutoBanned,
+		); err != nil {
+			return nil, err
+		}
+		if userID.Valid {
+			item.UserID = &userID.Int64
+		}
+		if apiKeyID.Valid {
+			item.APIKeyID = &apiKeyID.Int64
+		}
+		// 风险详情只需要帮助管理员判断类别，不应返回过长的用户输入摘要。
+		item.InputExcerpt = truncateRunes(item.InputExcerpt, 240)
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func truncateRunes(value string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	runes := []rune(strings.TrimSpace(value))
+	if len(runes) <= max {
+		return string(runes)
+	}
+	return string(runes[:max])
+}
+
+func buildRelatedContentModerationLogMatchClauses(event *service.TokenRiskEvent) ([]string, []any) {
+	if event == nil {
+		return nil, nil
+	}
+	args := []any{}
+	strongClauses := []string{}
+	if event.SourceLogID != nil && *event.SourceLogID > 0 {
+		args = append(args, *event.SourceLogID)
+		// 内容摘要必须优先按非空 request_id 精确关联，避免空 request_id 把无关记录误挂到风险事件上。
+		strongClauses = append(strongClauses, "(l.request_id <> '' AND l.request_id = (SELECT NULLIF(request_id, '') FROM ops_system_logs WHERE id = $"+itoa(len(args))+"))")
+	}
+	if event.APIKeyID != nil && *event.APIKeyID > 0 {
+		args = append(args, *event.APIKeyID)
+		strongClauses = append(strongClauses, "l.api_key_id = $"+itoa(len(args)))
+	}
+	if len(strongClauses) > 0 {
+		return strongClauses, args
+	}
+	if event.UserID != nil && *event.UserID > 0 {
+		args = append(args, *event.UserID)
+		// 只有缺少 request_id/API key 这类强标识时才使用用户时间窗兜底，降低误关联概率。
+		return []string{"l.user_id = $" + itoa(len(args))}, args
+	}
+	return nil, nil
+}
+
 func (r *tokenRiskRepository) UpdateTokenRiskEventStatus(ctx context.Context, id int64, status string, falsePositive bool, actorUserID int64) error {
 	if r == nil || r.db == nil {
 		return fmt.Errorf("nil token risk repository")
