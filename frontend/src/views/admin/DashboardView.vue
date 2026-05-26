@@ -10,8 +10,10 @@
         <div class="gundam-dashboard-banner" aria-hidden="true">
           <div>
             <span class="gundam-dashboard-kicker">HANGAR CONTROL TERMINAL</span>
-            <strong>MAINTENANCE BAY / ADMIN CORE</strong>
+            <strong>RX-78 HANGAR OS / ADMIN CORE</strong>
+            <span class="gundam-dashboard-subline">FRAME DIAGNOSTICS / TOKEN RISK / ACCOUNT RACK</span>
           </div>
+          <div class="gundam-dashboard-unit" aria-hidden="true"></div>
           <div class="gundam-dashboard-status">
             <span>FRAME LINK</span>
             <b>ONLINE</b>

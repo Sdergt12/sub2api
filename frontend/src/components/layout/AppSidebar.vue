@@ -164,7 +164,7 @@
         :title="`${t('nav.currentUIMode')}: ${currentUIModeLabel} / ${nextUIModeLabel}`"
       >
         <span class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border border-current text-[10px] font-black">
-          {{ uiMode === 'gundam' ? 'G' : uiMode === 'gundam-lite' ? 'GL' : 'O' }}
+          {{ uiMode === 'gundam' ? 'G' : 'O' }}
         </span>
       </button>
       <div v-else class="ui-mode-selector mb-2" :class="{ 'ui-mode-selector-active': isGundamActive }">
@@ -188,14 +188,6 @@
             @click="setUIMode('gundam')"
           >
             Gundam
-          </button>
-          <button
-            type="button"
-            class="ui-mode-option"
-            :class="{ 'ui-mode-option-active': uiMode === 'gundam-lite' }"
-            @click="setUIMode('gundam-lite')"
-          >
-            Lite
           </button>
         </div>
       </div>
@@ -285,15 +277,13 @@ const isDark = ref(document.documentElement.classList.contains('dark'))
 const uiMode = computed(() => appStore.uiMode)
 const currentUIModeLabel = computed(() => {
   if (uiMode.value === 'gundam') return t('nav.gundamMode')
-  if (uiMode.value === 'gundam-lite') return t('nav.gundamLiteMode')
   return t('nav.officialMode')
 })
 const nextUIModeLabel = computed(() => {
   if (uiMode.value === 'official') return t('nav.switchToGundamMode')
-  if (uiMode.value === 'gundam') return t('nav.switchToGundamLiteMode')
   return t('nav.switchToOfficialMode')
 })
-const isGundamActive = computed(() => uiMode.value === 'gundam' || uiMode.value === 'gundam-lite')
+const isGundamActive = computed(() => uiMode.value === 'gundam')
 
 // Track which parent nav groups are expanded
 const expandedGroups = ref<Set<string>>(new Set())
@@ -860,7 +850,7 @@ function toggleUIMode() {
   appStore.toggleUIMode()
 }
 
-function setUIMode(mode: 'official' | 'gundam' | 'gundam-lite') {
+function setUIMode(mode: 'official' | 'gundam') {
   appStore.setUIMode(mode)
 }
 
