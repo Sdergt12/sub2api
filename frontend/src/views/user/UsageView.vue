@@ -149,7 +149,15 @@
       </template>
 
       <template #table>
-        <DataTable :columns="columns" :data="usageLogs" :loading="loading">
+        <DataTable
+          :columns="columns"
+          :data="usageLogs"
+          :loading="loading"
+          :server-side-sort="true"
+          default-sort-key="created_at"
+          default-sort-order="desc"
+          @sort="handleSort"
+        >
           <template #cell-api_key="{ row }">
             <span class="text-sm text-gray-900 dark:text-white">{{
               row.api_key?.name || '-'
@@ -183,14 +191,14 @@
 
           <template #cell-billing_mode="{ row }">
             <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium"
-                  :class="getBillingModeBadgeClass(row.billing_mode)">
-              {{ getBillingModeLabel(row.billing_mode) }}
+                  :class="getBillingModeBadgeClass(getDisplayBillingMode(row))">
+              {{ getBillingModeLabel(getDisplayBillingMode(row), t) }}
             </span>
           </template>
 
           <template #cell-tokens="{ row }">
-            <!-- 图片生成请求（仅按次计费时显示图片格式） -->
-            <div v-if="row.image_count > 0 && row.billing_mode === 'image'" class="flex items-center gap-1.5">
+            <!-- 图片生成请求 -->
+            <div v-if="isImageUsage(row)" class="flex items-center gap-1.5">
               <svg
                 class="h-4 w-4 text-indigo-500"
                 fill="none"
@@ -204,8 +212,8 @@
                   d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                 />
               </svg>
-              <span class="font-medium text-gray-900 dark:text-white">{{ row.image_count }}{{ $t('usage.imageUnit') }}</span>
-              <span class="text-gray-400">({{ row.image_size || '2K' }})</span>
+              <span class="font-medium text-gray-900 dark:text-white">{{ row.image_count }}{{ t('usage.imageUnit') }}</span>
+              <span class="text-gray-400">({{ formatImageBillingSize(row, t) }})</span>
             </div>
             <!-- Token 请求 -->
             <div v-else class="flex items-center gap-1.5">
@@ -439,13 +447,55 @@
               <span class="text-gray-400">{{ t('admin.usage.outputCost') }}</span>
               <span class="font-medium text-white">${{ tooltipData.output_cost.toFixed(6) }}</span>
             </div>
-            <div v-if="tooltipData && tooltipData.input_tokens > 0" class="flex items-center justify-between gap-4">
-              <span class="text-gray-400">{{ t('usage.inputTokenPrice') }}</span>
-              <span class="font-medium text-sky-300">{{ formatTokenPricePerMillion(tooltipData.input_cost, tooltipData.input_tokens) }} {{ t('usage.perMillionTokens') }}</span>
-            </div>
-            <div v-if="tooltipData && tooltipData.output_tokens > 0" class="flex items-center justify-between gap-4">
-              <span class="text-gray-400">{{ t('usage.outputTokenPrice') }}</span>
-              <span class="font-medium text-violet-300">{{ formatTokenPricePerMillion(tooltipData.output_cost, tooltipData.output_tokens) }} {{ t('usage.perMillionTokens') }}</span>
+            <!-- Per-image billing: show image metadata and unit price -->
+            <template v-if="tooltipData && isImageUsage(tooltipData)">
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.imageCount') }}</span>
+                <span class="font-medium text-white">{{ tooltipData.image_count }}{{ t('usage.imageUnit') }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.imageBillingSize') }}</span>
+                <span class="font-medium text-white">{{ formatImageBillingSize(tooltipData, t) }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.imageSizeSource') }}</span>
+                <span class="font-medium text-white">{{ formatImageSizeSource(tooltipData, t) }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.imageInputSize') }}</span>
+                <span class="font-medium text-white">{{ formatImageInputSize(tooltipData, t) }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.imageOutputSize') }}</span>
+                <span class="font-medium text-white">{{ formatImageOutputSize(tooltipData, t) }}</span>
+              </div>
+              <div v-if="formatImageSizeBreakdown(tooltipData)" class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.imageSizeBreakdown') }}</span>
+                <span class="font-medium text-white">{{ formatImageSizeBreakdown(tooltipData) }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.imageUnitPrice') }}</span>
+                <span class="font-medium text-sky-300">${{ imageUnitPrice(tooltipData).toFixed(6) }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.imageTotalPrice') }}</span>
+                <span class="font-medium text-white">${{ tooltipData.total_cost?.toFixed(6) || '0.000000' }}</span>
+              </div>
+            </template>
+            <!-- Token billing: show unit prices per 1M tokens -->
+            <template v-else-if="!getDisplayBillingMode(tooltipData) || getDisplayBillingMode(tooltipData) === BILLING_MODE_TOKEN">
+              <div v-if="tooltipData && tooltipData.input_tokens > 0" class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.inputTokenPrice') }}</span>
+                <span class="font-medium text-sky-300">{{ formatTokenPricePerMillion(tooltipData.input_cost, tooltipData.input_tokens) }} {{ t('usage.perMillionTokens') }}</span>
+              </div>
+              <div v-if="tooltipData && tooltipData.output_tokens > 0" class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.outputTokenPrice') }}</span>
+                <span class="font-medium text-violet-300">{{ formatTokenPricePerMillion(tooltipData.output_cost, tooltipData.output_tokens) }} {{ t('usage.perMillionTokens') }}</span>
+              </div>
+            </template>
+            <div v-else class="flex items-center justify-between gap-4">
+              <span class="text-gray-400">{{ t('usage.unitPrice') }}</span>
+              <span class="font-medium text-sky-300">${{ tooltipData?.total_cost?.toFixed(6) || '0.000000' }}</span>
             </div>
             <div v-if="tooltipData && tooltipData.cache_creation_cost > 0" class="flex items-center justify-between gap-4">
               <span class="text-gray-400">{{ t('admin.usage.cacheCreationCost') }}</span>
@@ -508,6 +558,19 @@ import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
 import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
 import { resolveUsageRequestType } from '@/utils/usageRequestType'
+import {
+  BILLING_MODE_IMAGE,
+  BILLING_MODE_TOKEN,
+  getBillingModeBadgeClass,
+  getBillingModeLabel,
+} from '@/utils/billingMode'
+import {
+  formatImageBillingSize,
+  formatImageInputSize,
+  formatImageOutputSize,
+  formatImageSizeBreakdown,
+  formatImageSizeSource,
+} from '@/utils/imageUsage'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -598,10 +661,32 @@ const pagination = reactive({
   total: 0,
   pages: 0
 })
+const sortState = reactive({
+  sort_by: 'created_at',
+  sort_order: 'desc' as 'asc' | 'desc'
+})
 
 const formatDuration = (ms: number): string => {
   if (ms < 1000) return `${ms.toFixed(0)}ms`
   return `${(ms / 1000).toFixed(2)}s`
+}
+
+const imageUnitPrice = (row: UsageLog | null): number => {
+  if (!row || row.image_count <= 0) return 0
+  const total = row.total_cost ?? 0
+  const price = total / row.image_count
+  return Number.isFinite(price) ? price : 0
+}
+
+const isImageUsage = (row: Pick<UsageLog, 'image_count'> | null | undefined): boolean => {
+  return (row?.image_count ?? 0) > 0
+}
+
+const getDisplayBillingMode = (row: Pick<UsageLog, 'billing_mode' | 'image_count'> | null | undefined): string | null | undefined => {
+  if (isImageUsage(row)) {
+    return BILLING_MODE_IMAGE
+  }
+  return row?.billing_mode
 }
 
 const formatUserAgent = (ua: string): string => {
@@ -624,17 +709,6 @@ const getRequestTypeBadgeClass = (log: UsageLog): string => {
   return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
 }
 
-const getBillingModeLabel = (mode: string | null | undefined): string => {
-  if (mode === 'per_request') return t('admin.usage.billingModePerRequest')
-  if (mode === 'image') return t('admin.usage.billingModeImage')
-  return t('admin.usage.billingModeToken')
-}
-
-const getBillingModeBadgeClass = (mode: string | null | undefined): string => {
-  if (mode === 'per_request') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200'
-  if (mode === 'image') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200'
-  return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-}
 
 const getRequestTypeExportText = (log: UsageLog): string => {
   const requestType = resolveUsageRequestType(log)
@@ -660,6 +734,18 @@ const formatTokens = (value: number): string => {
   return value.toLocaleString()
 }
 
+type UsageTableQueryParams = UsageQueryParams & {
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
+}
+
+const buildUsageQueryParams = (page: number, pageSize: number): UsageTableQueryParams => ({
+  page,
+  page_size: pageSize,
+  ...filters.value,
+  sort_by: sortState.sort_by,
+  sort_order: sortState.sort_order
+})
 
 const loadUsageLogs = async () => {
   if (abortController) {
@@ -670,13 +756,10 @@ const loadUsageLogs = async () => {
   const { signal } = currentAbortController
   loading.value = true
   try {
-    const params: UsageQueryParams = {
-      page: pagination.page,
-      page_size: pagination.page_size,
-      ...filters.value
-    }
-
-    const response = await usageAPI.query(params, { signal })
+    const response = await usageAPI.query(
+      buildUsageQueryParams(pagination.page, pagination.page_size),
+      { signal }
+    )
     if (signal.aborted) {
       return
     }
@@ -758,6 +841,13 @@ const handlePageSizeChange = (pageSize: number) => {
   loadUsageLogs()
 }
 
+const handleSort = (key: string, order: 'asc' | 'desc') => {
+  sortState.sort_by = key
+  sortState.sort_order = order
+  pagination.page = 1
+  loadUsageLogs()
+}
+
 /**
  * Escape CSV value to prevent injection and handle special characters
  */
@@ -795,12 +885,7 @@ const exportToCSV = async () => {
     const totalRequests = Math.ceil(pagination.total / pageSize)
 
     for (let page = 1; page <= totalRequests; page++) {
-      const params: UsageQueryParams = {
-        page: page,
-        page_size: pageSize,
-        ...filters.value
-      }
-      const response = await usageAPI.query(params)
+      const response = await usageAPI.query(buildUsageQueryParams(page, pageSize))
       allLogs.push(...response.items)
     }
 
@@ -835,7 +920,7 @@ const exportToCSV = async () => {
         formatReasoningEffort(log.reasoning_effort),
         log.inbound_endpoint || '',
         getRequestTypeExportText(log),
-        getBillingModeLabel(log.billing_mode),
+        getBillingModeLabel(getDisplayBillingMode(log), t),
         log.input_tokens,
         log.output_tokens,
         log.cache_read_tokens,

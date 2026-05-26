@@ -3,14 +3,10 @@
     <div class="space-y-6">
       <div class="text-center">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
-          {{ t('auth.oidc.callbackTitle', { providerName }) }}
+          {{ t('auth.dingtalk.callbackTitle') }}
         </h2>
         <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">
-          {{
-            isProcessing
-              ? t('auth.oidc.callbackProcessing', { providerName })
-              : t('auth.oidc.callbackHint')
-          }}
+          {{ isProcessing ? t('auth.dingtalk.callbackProcessing') : t('auth.dingtalk.callbackHint') }}
         </p>
       </div>
 
@@ -79,7 +75,7 @@
 
           <template v-if="needsInvitation">
             <p class="text-sm text-gray-700 dark:text-gray-300">
-              {{ t('auth.oidc.invitationRequired', { providerName }) }}
+              {{ t('auth.dingtalk.invitationRequired') }}
             </p>
             <div>
               <input
@@ -96,11 +92,7 @@
               :disabled="isSubmitting || !invitationCode.trim()"
               @click="handleSubmitInvitation"
             >
-              {{
-                isSubmitting
-                  ? t('auth.oidc.completing')
-                  : t('auth.oidc.completeRegistration')
-              }}
+              {{ isSubmitting ? t('auth.dingtalk.completing') : t('auth.dingtalk.completeRegistration') }}
             </button>
           </template>
 
@@ -154,7 +146,7 @@
               {{ t('auth.oauthFlow.createAccountHint') }}
             </p>
             <PendingOAuthCreateAccountForm
-              test-id-prefix="oidc"
+              test-id-prefix="dingtalk"
               :initial-email="pendingAccountEmail"
               :is-submitting="isSubmitting"
               :error-message="accountActionError"
@@ -170,7 +162,7 @@
             <div class="space-y-3">
               <input
                 v-model="bindLoginEmail"
-                data-testid="oidc-bind-login-email"
+                data-testid="dingtalk-bind-login-email"
                 type="email"
                 class="input w-full"
                 :placeholder="t('auth.emailPlaceholder')"
@@ -179,7 +171,7 @@
               />
               <input
                 v-model="bindLoginPassword"
-                data-testid="oidc-bind-login-password"
+                data-testid="dingtalk-bind-login-password"
                 type="password"
                 class="input w-full"
                 :placeholder="t('auth.passwordPlaceholder')"
@@ -187,7 +179,7 @@
                 @keyup.enter="handleBindLogin"
               />
               <button
-                data-testid="oidc-bind-login-submit"
+                data-testid="dingtalk-bind-login-submit"
                 class="btn btn-primary w-full"
                 :disabled="isSubmitting || !bindLoginEmail.trim() || !bindLoginPassword"
                 @click="handleBindLogin"
@@ -217,7 +209,7 @@
             <div class="space-y-3">
               <input
                 v-model="totpCode"
-                data-testid="oidc-bind-login-totp"
+                data-testid="dingtalk-bind-login-totp"
                 type="text"
                 inputmode="numeric"
                 maxlength="6"
@@ -227,7 +219,7 @@
                 @keyup.enter="handleSubmitTotpChallenge"
               />
               <button
-                data-testid="oidc-bind-login-totp-submit"
+                data-testid="dingtalk-bind-login-totp-submit"
                 class="btn btn-primary w-full"
                 :disabled="isSubmitting || totpCode.trim().length !== 6"
                 @click="handleSubmitTotpChallenge"
@@ -253,10 +245,8 @@ import PendingOAuthCreateAccountForm, {
 import { apiClient } from '@/api/client'
 import { useAuthStore, useAppStore } from '@/stores'
 import {
-  completeOIDCOAuthRegistration,
   exchangePendingOAuthCompletion,
   getOAuthCompletionKind,
-  getPublicSettings,
   isOAuthLoginCompletion,
   login2FA,
   persistOAuthTokenContext,
@@ -272,19 +262,20 @@ import {
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const authStore = useAuthStore()
 const appStore = useAppStore()
 
 const isProcessing = ref(true)
 const errorMessage = ref('')
+
+// Invitation code flow state
 const needsInvitation = ref(false)
 const invitationCode = ref('')
 const isSubmitting = ref(false)
 const invitationError = ref('')
 const redirectTo = ref('/dashboard')
-const providerName = ref('OIDC')
 const adoptionRequired = ref(false)
 const suggestedDisplayName = ref('')
 const suggestedAvatarUrl = ref('')
@@ -304,6 +295,7 @@ const totpTempToken = ref('')
 const totpCode = ref('')
 const totpError = ref('')
 const totpUserEmailMasked = ref('')
+const providerName = '钉钉'
 
 const needsCreateAccount = computed(() => pendingAccountAction.value === 'create_account')
 const needsChooser = computed(() => pendingAccountAction.value === 'choose_account_action')
@@ -333,26 +325,21 @@ watch(errorMessage, value => {
   }
 })
 
-type PendingOidcCompletion = PendingOAuthExchangeResponse & {
+type DingTalkPendingActionResponse = PendingOAuthExchangeResponse & {
   step?: string
-  pending_email?: string
-  resolved_email?: string
-  existing_account_email?: string
-  compat_email?: string
-  email?: string
-  suggested_email?: string
-  provider_fallback?: string
   intent?: string
-  requires_2fa?: boolean
-  temp_token?: string
-  user_email_masked?: string
+  email?: string
+  resolved_email?: string
+  pending_email?: string
+  existing_account_email?: string
+  suggested_email?: string
 }
 
 function persistPendingAuthSession(redirect?: string) {
   authStore.setPendingAuthSession({
     token: '',
     token_field: 'pending_oauth_token',
-    provider: 'oidc',
+    provider: 'dingtalk',
     redirect: sanitizeRedirectPath(redirect || redirectTo.value)
   })
 }
@@ -398,18 +385,6 @@ function sanitizeRedirectPath(path: string | null | undefined): string {
   if (path.includes('://')) return '/dashboard'
   if (path.includes('\n') || path.includes('\r')) return '/dashboard'
   return path
-}
-
-async function loadProviderName() {
-  try {
-    const settings = await getPublicSettings()
-    const name = settings.oidc_oauth_provider_name?.trim()
-    if (name) {
-      providerName.value = name
-    }
-  } catch {
-    // Ignore; fallback remains OIDC
-  }
 }
 
 function currentAdoptionDecision(): OAuthAdoptionDecision {
@@ -458,20 +433,19 @@ function normalizedPendingState(value: string | null | undefined): string {
   return value?.trim().toLowerCase() || ''
 }
 
-function extractPendingAccountEmail(completion: PendingOidcCompletion): string {
+function extractPendingAccountEmail(completion: DingTalkPendingActionResponse): string {
   return (
     completion.pending_email ||
     completion.existing_account_email ||
-    completion.compat_email ||
-    completion.resolved_email ||
     completion.email ||
+    completion.resolved_email ||
     completion.suggested_email ||
     ''
   ).trim()
 }
 
 function resolvePendingAccountAction(
-  completion: PendingOidcCompletion
+  completion: DingTalkPendingActionResponse
 ): 'none' | 'choose_account_action' | 'create_account' | 'bind_login' {
   const raw = normalizedPendingState(completion.step || completion.error || completion.intent)
   if (
@@ -489,8 +463,9 @@ function resolvePendingAccountAction(
   if (
     raw === 'bind_login_required' ||
     raw === 'bind_login' ||
-    raw === 'existing_account_binding_required' ||
+    raw === 'existing_account' ||
     raw === 'existing_account_required' ||
+    raw === 'existing_account_binding_required' ||
     raw === 'adopt_existing_user_by_email'
   ) {
     return 'bind_login'
@@ -498,7 +473,7 @@ function resolvePendingAccountAction(
   return 'none'
 }
 
-function applyPendingAccountAction(completion: PendingOidcCompletion) {
+function applyPendingAccountAction(completion: DingTalkPendingActionResponse) {
   const action = resolvePendingAccountAction(completion)
   pendingAccountAction.value = action
   accountActionError.value = ''
@@ -533,7 +508,7 @@ function applyPendingAccountAction(completion: PendingOidcCompletion) {
   canReturnToCreateAccount.value = false
 }
 
-function applyTotpChallenge(completion: PendingOidcCompletion): boolean {
+function applyTotpChallenge(completion: DingTalkPendingActionResponse): boolean {
   if (completion.requires_2fa !== true || !completion.temp_token) {
     return false
   }
@@ -604,7 +579,7 @@ async function finalizeCompletion(completion: PendingOAuthExchangeResponse, redi
   }
 
   if (!isOAuthLoginCompletion(completion)) {
-    throw new Error(t('auth.oidc.callbackMissingToken'))
+    throw new Error(t('auth.dingtalk.callbackMissingToken'))
   }
 
   persistOAuthTokenContext(completion)
@@ -614,9 +589,15 @@ async function finalizeCompletion(completion: PendingOAuthExchangeResponse, redi
   await router.replace(redirect)
 }
 
-async function finalizePendingAccountResponse(completion: PendingOidcCompletion) {
+async function finalizePendingAccountResponse(completion: DingTalkPendingActionResponse) {
   applyAdoptionSuggestionState(completion)
   const redirect = sanitizeRedirectPath(completion.redirect || redirectTo.value)
+
+  // step=email_completion: 用户无邮箱，需要跳到补邮箱页面
+  if (completion.step === 'email_completion' || (completion as Record<string, unknown>)['requires_email_completion'] === true) {
+    await router.replace('/auth/dingtalk/email-completion?redirect=' + encodeURIComponent(redirect))
+    return
+  }
 
   if (completion.error === 'invitation_required') {
     pendingAccountAction.value = 'none'
@@ -660,23 +641,20 @@ async function handleSubmitInvitation() {
   try {
     const affCode = loadOAuthAffiliateCode()
     const decision = currentAdoptionDecision()
-    const completion: PendingOidcCompletion = legacyPendingOAuthToken.value
-      ? (
-          await apiClient.post<PendingOidcCompletion>('/auth/oauth/oidc/complete-registration', {
-            pending_oauth_token: legacyPendingOAuthToken.value,
-            invitation_code: invitationCode.value.trim(),
-            ...oauthAffiliatePayload(affCode),
-            ...serializeAdoptionDecision(decision)
-          })
-        ).data
-      : affCode
-        ? await completeOIDCOAuthRegistration(invitationCode.value.trim(), decision, affCode)
-        : await completeOIDCOAuthRegistration(invitationCode.value.trim(), decision)
+    const { data: completion } = await apiClient.post<DingTalkPendingActionResponse>(
+      '/auth/oauth/dingtalk/complete-registration',
+      {
+        pending_oauth_token: legacyPendingOAuthToken.value || undefined,
+        invitation_code: invitationCode.value.trim(),
+        ...oauthAffiliatePayload(affCode),
+        ...serializeAdoptionDecision(decision)
+      }
+    )
     await finalizePendingAccountResponse(completion)
   } catch (e: unknown) {
     const err = e as { message?: string; response?: { data?: { message?: string } } }
     invitationError.value =
-      err.response?.data?.message || err.message || t('auth.oidc.completeRegistrationFailed')
+      err.response?.data?.message || err.message || t('auth.dingtalk.completeRegistrationFailed')
   } finally {
     isSubmitting.value = false
   }
@@ -685,7 +663,7 @@ async function handleSubmitInvitation() {
 async function handleContinueLogin() {
   isSubmitting.value = true
   try {
-    const completion = await exchangePendingOAuthCompletion(currentAdoptionDecision()) as PendingOidcCompletion
+    const completion = await exchangePendingOAuthCompletion(currentAdoptionDecision()) as DingTalkPendingActionResponse
     await finalizePendingAccountResponse(completion)
   } catch (e: unknown) {
     errorMessage.value = getRequestErrorMessage(e, t('auth.loginFailed'))
@@ -701,7 +679,7 @@ async function handleCreateAccount(payload: PendingOAuthCreateAccountPayload) {
 
   isSubmitting.value = true
   try {
-    const { data } = await apiClient.post<PendingOidcCompletion>('/auth/oauth/pending/create-account', {
+    const { data } = await apiClient.post<DingTalkPendingActionResponse>('/auth/oauth/pending/create-account', {
       email: payload.email,
       password: payload.password,
       verify_code: payload.verifyCode || undefined,
@@ -729,7 +707,7 @@ async function handleBindLogin() {
 
   isSubmitting.value = true
   try {
-    const { data } = await apiClient.post<PendingOidcCompletion>('/auth/oauth/pending/bind-login', {
+    const { data } = await apiClient.post<DingTalkPendingActionResponse>('/auth/oauth/pending/bind-login', {
       email,
       password,
       ...serializeAdoptionDecision(currentAdoptionDecision())
@@ -765,8 +743,6 @@ async function handleSubmitTotpChallenge() {
 }
 
 onMounted(async () => {
-  void loadProviderName()
-
   const params = parseFragmentParams()
   const legacyLogin = readLegacyFragmentLogin(params)
   const legacyPendingToken = params.get('pending_oauth_token')?.trim() || ''
@@ -795,17 +771,37 @@ onMounted(async () => {
     }
 
     if (error) {
-      errorMessage.value = errorDesc || error
+      const i18nKey = `auth.dingtalk.error.${error}`
+      errorMessage.value = te(i18nKey) ? t(i18nKey) : (errorDesc || error)
       isProcessing.value = false
       return
     }
 
-    const completion = await exchangePendingOAuthCompletion() as PendingOidcCompletion
+    const completion = await exchangePendingOAuthCompletion()
     const completionRedirect = sanitizeRedirectPath(
       completion.redirect || (route.query.redirect as string | undefined) || '/dashboard'
     )
     applyAdoptionSuggestionState(completion)
     redirectTo.value = completionRedirect
+
+    const completionData = completion as DingTalkPendingActionResponse
+    // 用户从补邮箱页"我已有账户"按钮跳回时携带 bind=1，跳过 email_completion 自动 redirect，
+    // 直接进入 bind_login 输入密码绑定已有账户。
+    const wantsBindExisting = (route.query.bind as string | undefined) === '1'
+    const presetEmail = ((route.query.email as string | undefined) || '').trim()
+    if (completionData.step === 'email_completion' || (completionData as unknown as Record<string, unknown>)['requires_email_completion'] === true) {
+      if (wantsBindExisting) {
+        pendingAccountAction.value = 'bind_login'
+        bindLoginEmail.value = presetEmail
+        bindLoginPassword.value = ''
+        canReturnToCreateAccount.value = true
+        isProcessing.value = false
+        persistPendingAuthSession(completionRedirect)
+        return
+      }
+      await router.replace('/auth/dingtalk/email-completion?redirect=' + encodeURIComponent(completionRedirect))
+      return
+    }
 
     if (completion.error === 'invitation_required') {
       needsInvitation.value = true
@@ -814,12 +810,12 @@ onMounted(async () => {
       return
     }
 
-    if (applyTotpChallenge(completion)) {
+    if (applyTotpChallenge(completion as DingTalkPendingActionResponse)) {
       persistPendingAuthSession(completionRedirect)
       return
     }
 
-    applyPendingAccountAction(completion)
+    applyPendingAccountAction(completion as DingTalkPendingActionResponse)
     if (pendingAccountAction.value !== 'none') {
       isProcessing.value = false
       persistPendingAuthSession(completionRedirect)

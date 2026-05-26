@@ -18,8 +18,8 @@
         <div
           v-if="
             needsInvitation ||
-            needsAdoptionConfirmation ||
             needsChooser ||
+            needsAdoptionConfirmation ||
             needsCreateAccount ||
             needsBindLogin ||
             needsTotpChallenge
@@ -99,9 +99,85 @@
               {{
                 isSubmitting
                   ? t('auth.oidc.completing')
-                  : t('auth.oidc.completeRegistration')
+                : t('auth.oidc.completeRegistration')
               }}
             </button>
+
+            <div
+              class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-800/60"
+            >
+              <div class="space-y-3">
+                <div class="space-y-1">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ t('auth.alreadyHaveAccount') }}
+                  </p>
+                  <p class="text-xs text-gray-500 dark:text-dark-400">
+                    {{
+                      hasCurrentAuthToken
+                        ? t('auth.oauthFlow.bindCurrentAccountDescription', { providerName })
+                        : t('auth.oauthFlow.signInThenBindDescription', { providerName })
+                    }}
+                  </p>
+                </div>
+
+                <input
+                  v-if="!hasCurrentAuthToken"
+                  v-model="existingAccountEmail"
+                  data-testid="existing-account-email"
+                  type="email"
+                  class="input w-full"
+                  :placeholder="t('auth.emailPlaceholder')"
+                  :disabled="isSubmitting"
+                />
+
+                <button
+                  data-testid="existing-account-submit"
+                  type="button"
+                  class="btn btn-secondary w-full"
+                  :disabled="isSubmitting"
+                  @click="handleExistingAccountBinding"
+                >
+                  {{ hasCurrentAuthToken ? t('auth.oauthFlow.bindCurrentAccount') : t('auth.signIn') }}
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <template v-else-if="needsChooser">
+            <div
+              class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-800/60"
+            >
+              <div class="space-y-4">
+                <div class="space-y-1">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ t('auth.oauthFlow.chooseHowToContinue') }}
+                  </p>
+                  <p class="text-xs text-gray-500 dark:text-dark-400">
+                    {{ t('auth.oauthFlow.chooseAccountActionHint') }}
+                  </p>
+                </div>
+
+                <button
+                  data-testid="wechat-choice-bind-existing"
+                  type="button"
+                  class="btn btn-primary w-full"
+                  :disabled="isSubmitting"
+                  @click="switchToBindLoginMode()"
+                >
+                  {{ t('auth.oauthFlow.bindExistingAccount') }}
+                </button>
+
+                <button
+                  data-testid="wechat-choice-create-account"
+                  type="button"
+                  class="btn btn-secondary w-full"
+                  :disabled="isSubmitting"
+                  @click="switchToCreateAccountMode()"
+                >
+                  {{ t('auth.oauthFlow.createNewAccount') }}
+                </button>
+              </div>
+            </div>
           </template>
 
           <template v-else-if="needsAdoptionConfirmation">
@@ -113,64 +189,61 @@
             </button>
           </template>
 
-          <template v-else-if="needsChooser">
-            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-800/60">
-              <div class="space-y-4">
-                <div class="space-y-1">
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">
-                    {{ t('auth.oauthFlow.chooseHowToContinue') }}
-                  </p>
-                  <p class="text-xs text-gray-500 dark:text-dark-400">
-                    {{
-                      pendingAccountEmail
-                        ? t('auth.oauthFlow.suggestedEmail', { email: pendingAccountEmail })
-                        : t('auth.oauthFlow.chooseAccountActionHint')
-                    }}
-                  </p>
-                </div>
-
-                <div class="grid gap-3 sm:grid-cols-2">
-                  <button
-                    class="btn btn-secondary w-full"
-                    :disabled="isSubmitting"
-                    @click="switchToBindLoginMode()"
-                  >
-                    {{ t('auth.oauthFlow.bindExistingAccount') }}
-                  </button>
-                  <button
-                    class="btn btn-primary w-full"
-                    :disabled="isSubmitting"
-                    @click="switchToCreateAccountMode"
-                  >
-                    {{ t('auth.oauthFlow.createNewAccount') }}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </template>
-
           <template v-else-if="needsCreateAccount">
             <p class="text-sm text-gray-700 dark:text-gray-300">
               {{ t('auth.oauthFlow.createAccountHint') }}
             </p>
             <PendingOAuthCreateAccountForm
-              test-id-prefix="oidc"
+              test-id-prefix="wechat"
               :initial-email="pendingAccountEmail"
               :is-submitting="isSubmitting"
               :error-message="accountActionError"
               @submit="handleCreateAccount"
               @switch-to-bind="switchToBindLoginMode"
             />
+            <button
+              v-if="showBackToChooser"
+              class="btn btn-secondary w-full"
+              :disabled="isSubmitting"
+              @click="switchToCreateAccountMode()"
+            >
+              {{ t('auth.oauthFlow.createNewAccount') }}
+            </button>
           </template>
 
           <template v-else-if="needsBindLogin">
             <p class="text-sm text-gray-700 dark:text-gray-300">
-              {{ t('auth.oauthFlow.bindLoginHint', { providerName }) }}
+              {{ t('auth.oauthFlow.bindSignInToExistingAccount', { providerName }) }}
             </p>
-            <div class="space-y-3">
+            <div
+              v-if="hasCurrentAuthToken"
+              class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-800/60"
+            >
+              <div class="space-y-3">
+                <div class="space-y-1">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ t('auth.oauthFlow.bindCurrentAccountTitle') }}
+                  </p>
+                  <p class="text-xs text-gray-500 dark:text-dark-400">
+                    {{ t('auth.oauthFlow.bindCurrentAccountDescription', { providerName }) }}
+                  </p>
+                </div>
+
+                <button
+                  data-testid="existing-account-submit"
+                  type="button"
+                  class="btn btn-primary w-full"
+                  :disabled="isSubmitting"
+                  @click="handleBindCurrentAccount"
+                >
+                  {{ isSubmitting ? t('common.processing') : t('auth.oauthFlow.bindCurrentAccount') }}
+                </button>
+              </div>
+            </div>
+            <div v-else class="space-y-3">
               <input
                 v-model="bindLoginEmail"
-                data-testid="oidc-bind-login-email"
+                data-testid="wechat-bind-login-email"
                 type="email"
                 class="input w-full"
                 :placeholder="t('auth.emailPlaceholder')"
@@ -179,7 +252,7 @@
               />
               <input
                 v-model="bindLoginPassword"
-                data-testid="oidc-bind-login-password"
+                data-testid="wechat-bind-login-password"
                 type="password"
                 class="input w-full"
                 :placeholder="t('auth.passwordPlaceholder')"
@@ -187,22 +260,22 @@
                 @keyup.enter="handleBindLogin"
               />
               <button
-                data-testid="oidc-bind-login-submit"
+                data-testid="wechat-bind-login-submit"
                 class="btn btn-primary w-full"
                 :disabled="isSubmitting || !bindLoginEmail.trim() || !bindLoginPassword"
                 @click="handleBindLogin"
               >
                 {{ isSubmitting ? t('common.processing') : t('auth.oauthFlow.logInAndBind') }}
               </button>
-              <button
-                v-if="canReturnToCreateAccount"
-                class="btn btn-secondary w-full"
-                :disabled="isSubmitting"
-                @click="switchToCreateAccountMode"
-              >
-                {{ t('auth.oauthFlow.useDifferentEmail') }}
-              </button>
             </div>
+            <button
+              v-if="showBackToChooser"
+              class="btn btn-secondary w-full"
+              :disabled="isSubmitting"
+              @click="switchToCreateAccountMode()"
+            >
+              {{ t('auth.oauthFlow.createNewAccount') }}
+            </button>
           </template>
 
           <template v-else-if="needsTotpChallenge">
@@ -217,7 +290,7 @@
             <div class="space-y-3">
               <input
                 v-model="totpCode"
-                data-testid="oidc-bind-login-totp"
+                data-testid="wechat-bind-login-totp"
                 type="text"
                 inputmode="numeric"
                 maxlength="6"
@@ -227,7 +300,7 @@
                 @keyup.enter="handleSubmitTotpChallenge"
               />
               <button
-                data-testid="oidc-bind-login-totp-submit"
+                data-testid="wechat-bind-login-totp-submit"
                 class="btn btn-primary w-full"
                 :disabled="isSubmitting || totpCode.trim().length !== 6"
                 @click="handleSubmitTotpChallenge"
@@ -253,13 +326,16 @@ import PendingOAuthCreateAccountForm, {
 import { apiClient } from '@/api/client'
 import { useAuthStore, useAppStore } from '@/stores'
 import {
-  completeOIDCOAuthRegistration,
+  completeWeChatOAuthRegistration,
   exchangePendingOAuthCompletion,
+  getAuthToken,
+  hasExplicitWeChatOAuthCapabilities,
   getOAuthCompletionKind,
-  getPublicSettings,
   isOAuthLoginCompletion,
   login2FA,
+  prepareOAuthBindAccessTokenCookie,
   persistOAuthTokenContext,
+  resolveWeChatOAuthStartStrict,
   type OAuthAdoptionDecision,
   type OAuthTokenResponse,
   type PendingOAuthExchangeResponse
@@ -280,34 +356,38 @@ const appStore = useAppStore()
 const isProcessing = ref(true)
 const errorMessage = ref('')
 const needsInvitation = ref(false)
+const needsChooser = ref(false)
 const invitationCode = ref('')
 const isSubmitting = ref(false)
 const invitationError = ref('')
 const redirectTo = ref('/dashboard')
-const providerName = ref('OIDC')
 const adoptionRequired = ref(false)
 const suggestedDisplayName = ref('')
 const suggestedAvatarUrl = ref('')
+const existingAccountEmail = ref('')
 const adoptDisplayName = ref(true)
 const adoptAvatar = ref(true)
 const needsAdoptionConfirmation = ref(false)
-const pendingAccountAction = ref<'none' | 'choose_account_action' | 'create_account' | 'bind_login'>('none')
+const pendingAccountAction = ref<'none' | 'choice' | 'create_account' | 'bind_login'>('none')
 const pendingAccountEmail = ref('')
 const bindLoginEmail = ref('')
 const bindLoginPassword = ref('')
 const legacyPendingOAuthToken = ref('')
 const accountActionError = ref('')
-const canReturnToCreateAccount = ref(false)
-const bindSuccessMessage = t('profile.authBindings.bindSuccess')
 const needsTotpChallenge = ref(false)
 const totpTempToken = ref('')
 const totpCode = ref('')
 const totpError = ref('')
 const totpUserEmailMasked = ref('')
+const bindSuccessMessage = t('profile.authBindings.bindSuccess')
 
+const providerName = t('auth.wechatProviderName')
+const showBackToChooser = computed(
+  () => pendingAccountAction.value === 'create_account' || pendingAccountAction.value === 'bind_login'
+)
 const needsCreateAccount = computed(() => pendingAccountAction.value === 'create_account')
-const needsChooser = computed(() => pendingAccountAction.value === 'choose_account_action')
 const needsBindLogin = computed(() => pendingAccountAction.value === 'bind_login')
+const hasCurrentAuthToken = computed(() => Boolean(getAuthToken()))
 
 watch(invitationError, value => {
   if (value) {
@@ -333,15 +413,14 @@ watch(errorMessage, value => {
   }
 })
 
-type PendingOidcCompletion = PendingOAuthExchangeResponse & {
+type PendingWeChatCompletion = PendingOAuthExchangeResponse & {
   step?: string
+  status?: string
+  state?: string
   pending_email?: string
   resolved_email?: string
   existing_account_email?: string
-  compat_email?: string
   email?: string
-  suggested_email?: string
-  provider_fallback?: string
   intent?: string
   requires_2fa?: boolean
   temp_token?: string
@@ -352,7 +431,7 @@ function persistPendingAuthSession(redirect?: string) {
   authStore.setPendingAuthSession({
     token: '',
     token_field: 'pending_oauth_token',
-    provider: 'oidc',
+    provider: 'wechat',
     redirect: sanitizeRedirectPath(redirect || redirectTo.value)
   })
 }
@@ -400,16 +479,110 @@ function sanitizeRedirectPath(path: string | null | undefined): string {
   return path
 }
 
-async function loadProviderName() {
-  try {
-    const settings = await getPublicSettings()
-    const name = settings.oidc_oauth_provider_name?.trim()
-    if (name) {
-      providerName.value = name
-    }
-  } catch {
-    // Ignore; fallback remains OIDC
+async function ensurePublicSettingsLoaded(): Promise<void> {
+  if (hasExplicitWeChatOAuthCapabilities(appStore.cachedPublicSettings)) {
+    return
   }
+
+  if (appStore.publicSettingsLoaded) {
+    return
+  }
+
+  await appStore.fetchPublicSettings()
+}
+
+function resolveConfiguredWeChatOAuthMode(): 'open' | 'mp' | null {
+  if (!hasExplicitWeChatOAuthCapabilities(appStore.cachedPublicSettings)) {
+    return null
+  }
+
+  return resolveWeChatOAuthStartStrict(appStore.cachedPublicSettings).mode
+}
+
+function resolveWeChatOAuthUnavailableMessage(): string {
+  const resolved = resolveWeChatOAuthStartStrict(appStore.cachedPublicSettings)
+
+  switch (resolved.unavailableReason) {
+    case 'capability_unknown':
+      return t('auth.oauthFlow.wechatAvailabilityUnknown')
+    case 'external_browser_required':
+      return t('auth.oauthFlow.wechatSystemBrowserOnly')
+    case 'wechat_browser_required':
+      return t('auth.oauthFlow.wechatBrowserOnly')
+    case 'native_app_required':
+      return 'This WeChat sign-in flow is only available from the native mobile app.'
+    case 'not_configured':
+      return t('auth.oauthFlow.wechatNotConfigured')
+    default:
+      return t('auth.loginFailed')
+  }
+}
+
+function resolveRuntimeWeChatOAuthMode(): 'open' | 'mp' {
+  if (typeof navigator === 'undefined') {
+    return 'open'
+  }
+  return /MicroMessenger/i.test(navigator.userAgent) ? 'mp' : 'open'
+}
+
+function normalizeWeChatOAuthMode(value: unknown): 'open' | 'mp' | null {
+  return value === 'open' || value === 'mp' ? value : null
+}
+
+function resolveRequestedWeChatOAuthMode(): 'open' | 'mp' | null {
+  const configuredMode = resolveConfiguredWeChatOAuthMode()
+  if (configuredMode) {
+    return configuredMode
+  }
+
+  const queryMode = normalizeWeChatOAuthMode(route.query.mode)
+  if (queryMode) {
+    return queryMode
+  }
+
+  return resolveRuntimeWeChatOAuthMode()
+}
+
+function resolveRedirectTarget(): string {
+  return sanitizeRedirectPath(
+    (route.query.redirect as string | undefined) || redirectTo.value || '/dashboard'
+  )
+}
+
+function resolveWeChatStartURL(intent: 'bind_current_user' | 'adopt_existing_user_by_email'): string | null {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api/v1'
+  const normalized = apiBase.replace(/\/$/, '')
+  const mode = resolveRequestedWeChatOAuthMode()
+  if (!mode) {
+    return null
+  }
+  const params = new URLSearchParams({
+    mode,
+    redirect: resolveRedirectTarget(),
+    intent,
+  })
+
+  return `${normalized}/auth/oauth/wechat/start?${params.toString()}`
+}
+
+function buildExistingAccountResumePath(): string | null {
+  const mode = resolveRequestedWeChatOAuthMode()
+  if (!mode) {
+    return null
+  }
+
+  const params = new URLSearchParams({
+    wechat_bind_existing: '1',
+    redirect: resolveRedirectTarget(),
+    mode,
+  })
+
+  const email = existingAccountEmail.value.trim()
+  if (email) {
+    params.set('email', email)
+  }
+
+  return `/auth/wechat/callback?${params.toString()}`
 }
 
 function currentAdoptionDecision(): OAuthAdoptionDecision {
@@ -417,6 +590,10 @@ function currentAdoptionDecision(): OAuthAdoptionDecision {
     adoptDisplayName: adoptDisplayName.value,
     adoptAvatar: adoptAvatar.value
   }
+}
+
+function resolveResumeEmail(): string {
+  return typeof route.query.email === 'string' ? route.query.email.trim() : ''
 }
 
 function serializeAdoptionDecision(decision: OAuthAdoptionDecision): Record<string, boolean> {
@@ -430,11 +607,48 @@ function serializeAdoptionDecision(decision: OAuthAdoptionDecision): Record<stri
   return payload
 }
 
-function applyAdoptionSuggestionState(completion: {
-  adoption_required?: boolean
-  suggested_display_name?: string
-  suggested_avatar_url?: string
-}) {
+async function handleBindCurrentAccount() {
+  const unavailableMessage = resolveConfiguredWeChatOAuthMode() === null
+    ? resolveWeChatOAuthUnavailableMessage()
+    : ''
+
+  const startURL = resolveWeChatStartURL('bind_current_user')
+  if (!startURL) {
+    errorMessage.value = unavailableMessage || resolveWeChatOAuthUnavailableMessage()
+    return
+  }
+
+  try {
+    await prepareOAuthBindAccessTokenCookie()
+    window.location.href = startURL
+  } catch (e: unknown) {
+    errorMessage.value = getRequestErrorMessage(e, t('auth.loginFailed'))
+  }
+}
+
+async function handleExistingAccountBinding() {
+  if (getAuthToken()) {
+    await handleBindCurrentAccount()
+    return
+  }
+
+  const resumePath = buildExistingAccountResumePath()
+  if (!resumePath) {
+    errorMessage.value = resolveWeChatOAuthUnavailableMessage()
+    return
+  }
+
+  const params = new URLSearchParams({
+    redirect: resumePath,
+  })
+  const email = existingAccountEmail.value.trim()
+  if (email) {
+    params.set('email', email)
+  }
+  await router.replace(`/login?${params.toString()}`)
+}
+
+function applyAdoptionSuggestionState(completion: PendingOAuthExchangeResponse) {
   adoptionRequired.value = completion.adoption_required === true
   suggestedDisplayName.value = completion.suggested_display_name || ''
   suggestedAvatarUrl.value = completion.suggested_avatar_url || ''
@@ -447,10 +661,7 @@ function applyAdoptionSuggestionState(completion: {
   }
 }
 
-function hasSuggestedProfile(completion: {
-  suggested_display_name?: string
-  suggested_avatar_url?: string
-}): boolean {
+function hasSuggestedProfile(completion: PendingOAuthExchangeResponse): boolean {
   return Boolean(completion.suggested_display_name || completion.suggested_avatar_url)
 }
 
@@ -458,22 +669,23 @@ function normalizedPendingState(value: string | null | undefined): string {
   return value?.trim().toLowerCase() || ''
 }
 
-function extractPendingAccountEmail(completion: PendingOidcCompletion): string {
+function extractPendingAccountEmail(completion: PendingWeChatCompletion): string {
   return (
     completion.pending_email ||
     completion.existing_account_email ||
-    completion.compat_email ||
     completion.resolved_email ||
     completion.email ||
-    completion.suggested_email ||
+    resolveResumeEmail() ||
     ''
   ).trim()
 }
 
 function resolvePendingAccountAction(
-  completion: PendingOidcCompletion
-): 'none' | 'choose_account_action' | 'create_account' | 'bind_login' {
-  const raw = normalizedPendingState(completion.step || completion.error || completion.intent)
+  completion: PendingWeChatCompletion
+): 'none' | 'choice' | 'create_account' | 'bind_login' {
+  const raw = normalizedPendingState(
+    completion.step || completion.status || completion.state || completion.error || completion.intent
+  )
   if (
     raw === 'choice' ||
     raw === 'choose_account_action_required' ||
@@ -481,27 +693,29 @@ function resolvePendingAccountAction(
     raw === 'choose_account' ||
     raw === 'choose'
   ) {
-    return 'choose_account_action'
+    return 'choice'
   }
   if (raw === 'email_required' || raw === 'create_account_required' || raw === 'create_account') {
     return 'create_account'
   }
   if (
-    raw === 'bind_login_required' ||
-    raw === 'bind_login' ||
-    raw === 'existing_account_binding_required' ||
+    raw === 'existing_account' ||
     raw === 'existing_account_required' ||
-    raw === 'adopt_existing_user_by_email'
+    raw === 'existing_account_binding_required' ||
+    raw === 'adopt_existing_user_by_email' ||
+    raw === 'bind_login_required' ||
+    raw === 'bind_login'
   ) {
     return 'bind_login'
   }
   return 'none'
 }
 
-function applyPendingAccountAction(completion: PendingOidcCompletion) {
+function applyPendingAccountAction(completion: PendingWeChatCompletion) {
   const action = resolvePendingAccountAction(completion)
   pendingAccountAction.value = action
   accountActionError.value = ''
+  needsChooser.value = false
   needsTotpChallenge.value = false
   totpTempToken.value = ''
   totpCode.value = ''
@@ -509,36 +723,31 @@ function applyPendingAccountAction(completion: PendingOidcCompletion) {
   totpUserEmailMasked.value = ''
 
   const email = extractPendingAccountEmail(completion)
-  if (action === 'choose_account_action') {
-    pendingAccountEmail.value = email
-    bindLoginEmail.value = email
-    bindLoginPassword.value = ''
-    canReturnToCreateAccount.value = false
-    return
-  }
-
+  pendingAccountEmail.value = email
   if (action === 'create_account') {
-    pendingAccountEmail.value = email
-    canReturnToCreateAccount.value = true
     return
   }
 
   if (action === 'bind_login') {
     bindLoginEmail.value = email
     bindLoginPassword.value = ''
-    canReturnToCreateAccount.value = false
     return
   }
 
-  canReturnToCreateAccount.value = false
+  if (action === 'choice') {
+    needsChooser.value = true
+    bindLoginPassword.value = ''
+    return
+  }
 }
 
-function applyTotpChallenge(completion: PendingOidcCompletion): boolean {
+function applyTotpChallenge(completion: PendingWeChatCompletion): boolean {
   if (completion.requires_2fa !== true || !completion.temp_token) {
     return false
   }
 
   pendingAccountAction.value = 'none'
+  needsChooser.value = false
   needsInvitation.value = false
   needsAdoptionConfirmation.value = false
   needsTotpChallenge.value = true
@@ -552,14 +761,15 @@ function applyTotpChallenge(completion: PendingOidcCompletion): boolean {
 
 function switchToBindLoginMode(nextEmail?: string) {
   pendingAccountAction.value = 'bind_login'
+  needsChooser.value = false
   bindLoginEmail.value = bindLoginEmail.value.trim() || nextEmail?.trim() || pendingAccountEmail.value.trim()
   bindLoginPassword.value = ''
   accountActionError.value = ''
-  canReturnToCreateAccount.value = true
 }
 
 function switchToCreateAccountMode() {
   pendingAccountAction.value = 'create_account'
+  needsChooser.value = false
   pendingAccountEmail.value = pendingAccountEmail.value.trim() || bindLoginEmail.value.trim()
   accountActionError.value = ''
 }
@@ -614,7 +824,7 @@ async function finalizeCompletion(completion: PendingOAuthExchangeResponse, redi
   await router.replace(redirect)
 }
 
-async function finalizePendingAccountResponse(completion: PendingOidcCompletion) {
+async function finalizePendingAccountResponse(completion: PendingWeChatCompletion) {
   applyAdoptionSuggestionState(completion)
   const redirect = sanitizeRedirectPath(completion.redirect || redirectTo.value)
 
@@ -660,9 +870,9 @@ async function handleSubmitInvitation() {
   try {
     const affCode = loadOAuthAffiliateCode()
     const decision = currentAdoptionDecision()
-    const completion: PendingOidcCompletion = legacyPendingOAuthToken.value
+    const completion: PendingWeChatCompletion = legacyPendingOAuthToken.value
       ? (
-          await apiClient.post<PendingOidcCompletion>('/auth/oauth/oidc/complete-registration', {
+          await apiClient.post<PendingWeChatCompletion>('/auth/oauth/wechat/complete-registration', {
             pending_oauth_token: legacyPendingOAuthToken.value,
             invitation_code: invitationCode.value.trim(),
             ...oauthAffiliatePayload(affCode),
@@ -670,8 +880,8 @@ async function handleSubmitInvitation() {
           })
         ).data
       : affCode
-        ? await completeOIDCOAuthRegistration(invitationCode.value.trim(), decision, affCode)
-        : await completeOIDCOAuthRegistration(invitationCode.value.trim(), decision)
+        ? await completeWeChatOAuthRegistration(invitationCode.value.trim(), decision, affCode)
+        : await completeWeChatOAuthRegistration(invitationCode.value.trim(), decision)
     await finalizePendingAccountResponse(completion)
   } catch (e: unknown) {
     const err = e as { message?: string; response?: { data?: { message?: string } } }
@@ -685,7 +895,7 @@ async function handleSubmitInvitation() {
 async function handleContinueLogin() {
   isSubmitting.value = true
   try {
-    const completion = await exchangePendingOAuthCompletion(currentAdoptionDecision()) as PendingOidcCompletion
+    const completion = await exchangePendingOAuthCompletion(currentAdoptionDecision()) as PendingWeChatCompletion
     await finalizePendingAccountResponse(completion)
   } catch (e: unknown) {
     errorMessage.value = getRequestErrorMessage(e, t('auth.loginFailed'))
@@ -701,7 +911,7 @@ async function handleCreateAccount(payload: PendingOAuthCreateAccountPayload) {
 
   isSubmitting.value = true
   try {
-    const { data } = await apiClient.post<PendingOidcCompletion>('/auth/oauth/pending/create-account', {
+    const { data } = await apiClient.post<PendingWeChatCompletion>('/auth/oauth/pending/create-account', {
       email: payload.email,
       password: payload.password,
       verify_code: payload.verifyCode || undefined,
@@ -729,7 +939,7 @@ async function handleBindLogin() {
 
   isSubmitting.value = true
   try {
-    const { data } = await apiClient.post<PendingOidcCompletion>('/auth/oauth/pending/bind-login', {
+    const { data } = await apiClient.post<PendingWeChatCompletion>('/auth/oauth/pending/bind-login', {
       email,
       password,
       ...serializeAdoptionDecision(currentAdoptionDecision())
@@ -753,6 +963,7 @@ async function handleSubmitTotpChallenge() {
       temp_token: totpTempToken.value,
       totp_code: code
     })
+    persistOAuthTokenContext(completion)
     await authStore.setToken(completion.access_token)
     clearAllAffiliateReferralCodes()
     appStore.showSuccess(t('auth.loginSuccess'))
@@ -765,7 +976,42 @@ async function handleSubmitTotpChallenge() {
 }
 
 onMounted(async () => {
-  void loadProviderName()
+  try {
+    await ensurePublicSettingsLoaded()
+  } catch {
+    // Binding recovery requires confirmed capability flags. Use the strict guard below.
+  }
+
+  if (typeof route.query.email === 'string') {
+    const email = route.query.email.trim()
+    existingAccountEmail.value = email
+    bindLoginEmail.value = email
+    pendingAccountEmail.value = email
+  }
+
+  if (route.query.wechat_bind_existing === '1') {
+    if (getAuthToken()) {
+      await handleBindCurrentAccount()
+      return
+    }
+
+    const resumePath = buildExistingAccountResumePath()
+    if (!resumePath) {
+      errorMessage.value = resolveWeChatOAuthUnavailableMessage()
+      isProcessing.value = false
+      return
+    }
+
+    const params = new URLSearchParams({
+      redirect: resumePath,
+    })
+    const email = existingAccountEmail.value.trim()
+    if (email) {
+      params.set('email', email)
+    }
+    await router.replace(`/login?${params.toString()}`)
+    return
+  }
 
   const params = parseFragmentParams()
   const legacyLogin = readLegacyFragmentLogin(params)
@@ -800,7 +1046,7 @@ onMounted(async () => {
       return
     }
 
-    const completion = await exchangePendingOAuthCompletion() as PendingOidcCompletion
+    const completion = await exchangePendingOAuthCompletion() as PendingWeChatCompletion
     const completionRedirect = sanitizeRedirectPath(
       completion.redirect || (route.query.redirect as string | undefined) || '/dashboard'
     )
