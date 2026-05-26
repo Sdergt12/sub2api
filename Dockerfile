@@ -20,6 +20,9 @@ FROM ${NODE_IMAGE} AS frontend-builder
 
 WORKDIR /app/frontend
 
+# VPS/CI 小内存环境下 vue-tsc + vite 容易触发 V8 默认堆限制，固定上限让构建可用 swap 完成。
+ENV NODE_OPTIONS="--max-old-space-size=1536"
+
 # Install pnpm (pinned to v9 to match CI and keep builds reproducible)
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
