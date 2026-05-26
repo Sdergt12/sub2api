@@ -1,12 +1,27 @@
 <template>
   <div class="space-y-4">
     <button type="button" :disabled="disabled" class="btn btn-secondary w-full" @click="startLogin">
-      <span
-        class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+      <svg
+        class="icon mr-2"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        aria-hidden="true"
+        style="flex-shrink: 0"
       >
-        {{ providerInitial }}
-      </span>
-      {{ t('auth.oidc.signIn', { providerName: normalizedProviderName }) }}
+        <circle cx="12" cy="12" r="12" fill="#1677FF" />
+        <text
+          x="12"
+          y="17"
+          font-family="sans-serif"
+          font-size="13"
+          font-weight="bold"
+          fill="white"
+          text-anchor="middle"
+        >钉</text>
+      </svg>
+      {{ t('auth.dingtalk.signIn') }}
     </button>
 
     <div v-if="showDivider" class="flex items-center gap-3">
@@ -20,7 +35,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { resolveAffiliateReferralCode, storeOAuthAffiliateCode } from '@/utils/oauthAffiliate'
@@ -28,29 +42,20 @@ import { resolveAffiliateReferralCode, storeOAuthAffiliateCode } from '@/utils/o
 const props = withDefaults(defineProps<{
   disabled?: boolean
   affCode?: string
-  providerName?: string
   showDivider?: boolean
 }>(), {
-  providerName: 'OIDC',
   showDivider: true
 })
 
 const route = useRoute()
 const { t } = useI18n()
 
-const normalizedProviderName = computed(() => {
-  const name = props.providerName?.trim()
-  return name || 'OIDC'
-})
-
-const providerInitial = computed(() => normalizedProviderName.value.charAt(0).toUpperCase() || 'O')
-
 function startLogin(): void {
   const redirectTo = (route.query.redirect as string) || '/dashboard'
   storeOAuthAffiliateCode(resolveAffiliateReferralCode(props.affCode, route.query.aff, route.query.aff_code))
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api/v1'
   const normalized = apiBase.replace(/\/$/, '')
-  const startURL = `${normalized}/auth/oauth/oidc/start?redirect=${encodeURIComponent(redirectTo)}`
+  const startURL = `${normalized}/auth/oauth/dingtalk/start?redirect=${encodeURIComponent(redirectTo)}`
   window.location.href = startURL
 }
 </script>
