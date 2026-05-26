@@ -7,6 +7,7 @@ import type {
   Announcement,
   AnnouncementUserReadStatus,
   BasePaginationResponse,
+  CreateDirectAnnouncementRequest,
   CreateAnnouncementRequest,
   UpdateAnnouncementRequest
 } from '@/types'
@@ -17,10 +18,16 @@ export async function list(
   filters?: {
     status?: string
     search?: string
+    sort_by?: string
+    sort_order?: 'asc' | 'desc'
+  },
+  options?: {
+    signal?: AbortSignal
   }
 ): Promise<BasePaginationResponse<Announcement>> {
   const { data } = await apiClient.get<BasePaginationResponse<Announcement>>('/admin/announcements', {
-    params: { page, page_size: pageSize, ...filters }
+    params: { page, page_size: pageSize, ...filters },
+    signal: options?.signal
   })
   return data
 }
@@ -32,6 +39,11 @@ export async function getById(id: number): Promise<Announcement> {
 
 export async function create(request: CreateAnnouncementRequest): Promise<Announcement> {
   const { data } = await apiClient.post<Announcement>('/admin/announcements', request)
+  return data
+}
+
+export async function createDirect(request: CreateDirectAnnouncementRequest): Promise<Announcement> {
+  const { data } = await apiClient.post<Announcement>('/admin/announcements/direct', request)
   return data
 }
 
@@ -49,11 +61,21 @@ export async function getReadStatus(
   id: number,
   page: number = 1,
   pageSize: number = 20,
-  search: string = ''
+  filters?: {
+    search?: string
+    sort_by?: string
+    sort_order?: 'asc' | 'desc'
+  },
+  options?: {
+    signal?: AbortSignal
+  }
 ): Promise<BasePaginationResponse<AnnouncementUserReadStatus>> {
   const { data } = await apiClient.get<BasePaginationResponse<AnnouncementUserReadStatus>>(
     `/admin/announcements/${id}/read-status`,
-    { params: { page, page_size: pageSize, search } }
+    {
+      params: { page, page_size: pageSize, ...filters },
+      signal: options?.signal
+    }
   )
   return data
 }
@@ -62,10 +84,10 @@ const announcementsAPI = {
   list,
   getById,
   create,
+  createDirect,
   update,
   delete: deleteAnnouncement,
   getReadStatus
 }
 
 export default announcementsAPI
-

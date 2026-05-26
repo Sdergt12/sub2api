@@ -26,6 +26,12 @@ import scheduledTestsAPI from './scheduledTests'
 import backupAPI from './backup'
 import tlsFingerprintProfileAPI from './tlsFingerprintProfile'
 import channelsAPI from './channels'
+import channelMonitorAPI from './channelMonitor'
+import channelMonitorTemplateAPI from './channelMonitorTemplate'
+import adminPaymentAPI from './payment'
+import affiliatesAPI from './affiliates'
+import riskControlAPI from './riskControl'
+import tokenRiskAPI from './tokenRisk'
 
 /**
  * Unified admin API object for convenient access
@@ -53,7 +59,13 @@ export const adminAPI = {
   scheduledTests: scheduledTestsAPI,
   backup: backupAPI,
   tlsFingerprintProfiles: tlsFingerprintProfileAPI,
-  channels: channelsAPI
+  channels: channelsAPI,
+  channelMonitor: channelMonitorAPI,
+  channelMonitorTemplate: channelMonitorTemplateAPI,
+  payment: adminPaymentAPI,
+  affiliates: affiliatesAPI,
+  riskControl: riskControlAPI,
+  tokenRisk: tokenRiskAPI
 }
 
 export {
@@ -79,7 +91,13 @@ export {
   scheduledTestsAPI,
   backupAPI,
   tlsFingerprintProfileAPI,
-  channelsAPI
+  channelsAPI,
+  channelMonitorAPI,
+  channelMonitorTemplateAPI,
+  adminPaymentAPI,
+  affiliatesAPI,
+  riskControlAPI,
+  tokenRiskAPI
 }
 
 export default adminAPI
@@ -89,3 +107,5 @@ export type { BalanceHistoryItem } from './users'
 export type { ErrorPassthroughRule, CreateRuleRequest, UpdateRuleRequest } from './errorPassthrough'
 export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
 export type { TLSFingerprintProfile, CreateProfileRequest, UpdateProfileRequest } from './tlsFingerprintProfile'
+export type { ContentModerationConfig, ContentModerationLog, ModerationMode } from './riskControl'
+export type { TokenRiskEvent, TokenRiskSummary, TokenRiskLevel, TokenRiskStatus } from './tokenRisk'
