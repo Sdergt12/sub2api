@@ -20,7 +20,7 @@
             @change="handleStatusChange"
           />
 
-          <!-- Right: Action buttons -->
+          <!-- 右侧操作按钮 -->
           <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
             <button
               @click="loadAnnouncements"
@@ -29,6 +29,10 @@
               :title="t('common.refresh')"
             >
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
+            </button>
+            <button @click="openDirectDialog" class="btn btn-secondary">
+              <Icon name="mail" size="md" class="mr-1" />
+              {{ t('admin.announcements.sendDirect') }}
             </button>
             <button @click="openCreateDialog" class="btn btn-primary">
               <Icon name="plus" size="md" class="mr-1" />
@@ -39,7 +43,15 @@
       </template>
 
       <template #table>
-        <DataTable :columns="columns" :data="announcements" :loading="loading">
+        <DataTable
+          :columns="columns"
+          :data="announcements"
+          :loading="loading"
+          :server-side-sort="true"
+          default-sort-key="created_at"
+          default-sort-order="desc"
+          @sort="handleSort"
+        >
           <template #cell-title="{ value, row }">
             <div class="min-w-0">
               <div class="flex items-center gap-2">
@@ -68,7 +80,7 @@
             </span>
           </template>
 
-          <template #cell-notifyMode="{ row }">
+          <template #cell-notify_mode="{ row }">
             <span
               :class="[
                 'badge',
@@ -100,7 +112,7 @@
             </div>
           </template>
 
-          <template #cell-createdAt="{ value }">
+          <template #cell-created_at="{ value }">
             <span class="text-sm text-gray-500 dark:text-dark-400">{{ formatDateTime(value) }}</span>
           </template>
 
@@ -214,6 +226,56 @@
       </template>
     </BaseDialog>
 
+    <!-- 单用户通知弹窗 -->
+    <BaseDialog
+      :show="showDirectDialog"
+      :title="t('admin.announcements.sendDirect')"
+      width="normal"
+      @close="closeDirectDialog"
+    >
+      <form id="direct-announcement-form" @submit.prevent="handleSendDirect" class="space-y-4">
+        <div>
+          <label class="input-label">{{ t('admin.announcements.form.targetUserId') }}</label>
+          <input
+            v-model.number="directForm.target_user_id"
+            type="number"
+            min="1"
+            step="1"
+            class="input"
+            required
+          />
+          <p class="input-hint">{{ t('admin.announcements.form.targetUserIdHint') }}</p>
+        </div>
+
+        <div>
+          <label class="input-label">{{ t('admin.announcements.form.title') }}</label>
+          <input v-model="directForm.title" type="text" class="input" required />
+        </div>
+
+        <div>
+          <label class="input-label">{{ t('admin.announcements.form.content') }}</label>
+          <textarea v-model="directForm.content" rows="5" class="input" required></textarea>
+        </div>
+
+        <div>
+          <label class="input-label">{{ t('admin.announcements.form.notifyMode') }}</label>
+          <Select v-model="directForm.notify_mode" :options="notifyModeOptions" />
+          <p class="input-hint">{{ t('admin.announcements.form.directHint') }}</p>
+        </div>
+      </form>
+
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <button type="button" @click="closeDirectDialog" class="btn btn-secondary">
+            {{ t('common.cancel') }}
+          </button>
+          <button type="submit" form="direct-announcement-form" :disabled="directSending" class="btn btn-primary">
+            {{ directSending ? t('common.saving') : t('admin.announcements.sendDirect') }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
+
     <!-- Delete Confirmation -->
     <ConfirmDialog
       :show="showDeleteDialog"
@@ -236,7 +298,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
@@ -276,6 +338,11 @@ const pagination = reactive({
   pages: 0
 })
 
+const sortState = reactive({
+  sort_by: 'created_at',
+  sort_order: 'desc' as 'asc' | 'desc'
+})
+
 const statusFilterOptions = computed(() => [
   { value: '', label: t('admin.announcements.allStatus') },
   { value: 'draft', label: t('admin.announcements.statusLabels.draft') },
@@ -295,12 +362,12 @@ const notifyModeOptions = computed(() => [
 ])
 
 const columns = computed<Column[]>(() => [
-  { key: 'title', label: t('admin.announcements.columns.title') },
-  { key: 'status', label: t('admin.announcements.columns.status') },
-  { key: 'notifyMode', label: t('admin.announcements.columns.notifyMode') },
+  { key: 'title', label: t('admin.announcements.columns.title'), sortable: true },
+  { key: 'status', label: t('admin.announcements.columns.status'), sortable: true },
+  { key: 'notify_mode', label: t('admin.announcements.columns.notifyMode'), sortable: true },
   { key: 'targeting', label: t('admin.announcements.columns.targeting') },
   { key: 'timeRange', label: t('admin.announcements.columns.timeRange') },
-  { key: 'createdAt', label: t('admin.announcements.columns.createdAt') },
+  { key: 'created_at', label: t('admin.announcements.columns.createdAt'), sortable: true },
   { key: 'actions', label: t('admin.announcements.columns.actions') }
 ])
 
@@ -314,6 +381,10 @@ const statusLabel = (status: string) => {
 const targetingSummary = (targeting: AnnouncementTargeting) => {
   const anyOf = targeting?.any_of ?? []
   if (!anyOf || anyOf.length === 0) return t('admin.announcements.targetingSummaryAll')
+  const userIDs = anyOf
+    .flatMap((group) => group.all_of ?? [])
+    .flatMap((condition) => condition.user_ids ?? [])
+  if (userIDs.length === 1) return t('admin.announcements.targetingSummaryUser', { userId: userIDs[0] })
   return t('admin.announcements.targetingSummaryCustom', { groups: anyOf.length })
 }
 
@@ -321,15 +392,21 @@ const targetingSummary = (targeting: AnnouncementTargeting) => {
 let currentController: AbortController | null = null
 
 async function loadAnnouncements() {
-  if (currentController) currentController.abort()
-  currentController = new AbortController()
+  currentController?.abort()
+  const requestController = new AbortController()
+  currentController = requestController
+  const { signal } = requestController
 
   try {
     loading.value = true
     const res = await adminAPI.announcements.list(pagination.page, pagination.page_size, {
       status: filters.status || undefined,
-      search: searchQuery.value || undefined
-    })
+      search: searchQuery.value || undefined,
+      sort_by: sortState.sort_by,
+      sort_order: sortState.sort_order
+    }, { signal })
+
+    if (signal.aborted || currentController !== requestController) return
 
     announcements.value = res.items
     pagination.total = res.total
@@ -337,11 +414,21 @@ async function loadAnnouncements() {
     pagination.page = res.page
     pagination.page_size = res.page_size
   } catch (error: any) {
-    if (currentController.signal.aborted || error?.name === 'AbortError') return
+    if (
+      signal.aborted ||
+      currentController !== requestController ||
+      error?.name === 'AbortError' ||
+      error?.code === 'ERR_CANCELED'
+    ) {
+      return
+    }
     console.error('Error loading announcements:', error)
     appStore.showError(error.response?.data?.detail || t('admin.announcements.failedToLoad'))
   } finally {
-    loading.value = false
+    if (currentController === requestController) {
+      loading.value = false
+      currentController = null
+    }
   }
 }
 
@@ -357,6 +444,13 @@ function handlePageSizeChange(pageSize: number) {
 }
 
 function handleStatusChange() {
+  pagination.page = 1
+  loadAnnouncements()
+}
+
+function handleSort(key: string, order: 'asc' | 'desc') {
+  sortState.sort_by = key
+  sortState.sort_order = order
   pagination.page = 1
   loadAnnouncements()
 }
@@ -437,6 +531,57 @@ function openEditDialog(row: Announcement) {
 function closeEdit() {
   showEditDialog.value = false
   editingAnnouncement.value = null
+}
+
+// ===== 单用户通知 =====
+const showDirectDialog = ref(false)
+const directSending = ref(false)
+const directForm = reactive({
+  target_user_id: null as number | null,
+  title: '',
+  content: '',
+  notify_mode: 'popup'
+})
+
+function resetDirectForm() {
+  directForm.target_user_id = null
+  directForm.title = ''
+  directForm.content = ''
+  directForm.notify_mode = 'popup'
+}
+
+function openDirectDialog() {
+  resetDirectForm()
+  showDirectDialog.value = true
+}
+
+function closeDirectDialog() {
+  showDirectDialog.value = false
+}
+
+async function handleSendDirect() {
+  if (!directForm.target_user_id || directForm.target_user_id <= 0) {
+    appStore.showError(t('admin.announcements.invalidTargetUser'))
+    return
+  }
+
+  directSending.value = true
+  try {
+    await adminAPI.announcements.createDirect({
+      target_user_id: directForm.target_user_id,
+      title: directForm.title,
+      content: directForm.content,
+      notify_mode: directForm.notify_mode as any
+    })
+    appStore.showSuccess(t('admin.announcements.directSent'))
+    closeDirectDialog()
+    await loadAnnouncements()
+  } catch (error: any) {
+    console.error('Failed to send direct announcement:', error)
+    appStore.showError(error.response?.data?.detail || t('admin.announcements.failedToSendDirect'))
+  } finally {
+    directSending.value = false
+  }
 }
 
 function buildCreatePayload() {
@@ -561,5 +706,10 @@ function openReadStatus(row: Announcement) {
 onMounted(async () => {
   await loadSubscriptionGroups()
   await loadAnnouncements()
+})
+
+onUnmounted(() => {
+  if (searchDebounceTimer) window.clearTimeout(searchDebounceTimer)
+  currentController?.abort()
 })
 </script>
