@@ -6,6 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Toast, ToastType, PublicSettings } from '@/types'
+import { i18n } from '@/i18n'
 import {
   checkUpdates as checkUpdatesAPI,
   type VersionInfo,
@@ -14,10 +15,19 @@ import {
 import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
 
 export const useAppStore = defineStore('app', () => {
+  type UIMode = 'official' | 'gundam'
+  const uiModeStorageKey = 'sub2api_ui_mode'
+  const gundamImageStorageKey = 'sub2api_gundam_image_url'
+  const gundamBootDurationStorageKey = 'sub2api_gundam_boot_duration_ms'
+  const defaultGundamBootDurationMs = 5600
+
   // ==================== State ====================
 
   const sidebarCollapsed = ref<boolean>(false)
   const mobileOpen = ref<boolean>(false)
+  const uiMode = ref<UIMode>('official')
+  const gundamBootNonce = ref<number>(0)
+  const gundamBootDurationMs = ref<number>(defaultGundamBootDurationMs)
   const loading = ref<boolean>(false)
   const toasts = ref<Toast[]>([])
 
@@ -52,6 +62,80 @@ export const useAppStore = defineStore('app', () => {
   const loadingCount = ref<number>(0)
 
   // ==================== Actions ====================
+
+  function normalizeUIMode(value: unknown): UIMode {
+    // 旧版本存在 gundam-lite；统一迁移到强 Gundam 模式，避免缓存值进入不可达状态。
+    if (value === 'gundam' || value === 'gundam-lite') return 'gundam'
+    return 'official'
+  }
+
+  function normalizeGundamBootDuration(value: unknown): number {
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed)) return defaultGundamBootDurationMs
+    return Math.min(8000, Math.max(3000, Math.round(parsed)))
+  }
+
+  function isEmbeddedRuntime(): boolean {
+    if (typeof window === 'undefined') return false
+    const params = new URLSearchParams(window.location.search)
+    return params.get('ui_mode') === 'embedded' || window.location.pathname.includes('/embed')
+  }
+
+  function applyGundamImageURL(value: unknown): void {
+    if (typeof document === 'undefined') return
+    const raw = typeof value === 'string' ? value.trim() : ''
+    if (!raw) {
+      document.documentElement.style.removeProperty('--sub2api-gundam-image-url')
+      return
+    }
+    try {
+      const url = new URL(raw)
+      if (url.protocol !== 'https:') throw new Error('only https urls are allowed')
+      document.documentElement.style.setProperty('--sub2api-gundam-image-url', `url("${url.href.replace(/"/g, '%22')}")`)
+    } catch {
+      document.documentElement.style.removeProperty('--sub2api-gundam-image-url')
+    }
+  }
+
+  function setUIMode(mode: UIMode): void {
+    const nextMode = normalizeUIMode(mode)
+    const previousMode = uiMode.value
+    uiMode.value = nextMode
+    if (typeof document !== 'undefined') {
+      document.documentElement.dataset.uiMode = nextMode
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(uiModeStorageKey, nextMode)
+    }
+    if (previousMode !== 'gundam' && nextMode === 'gundam' && !isEmbeddedRuntime()) {
+      gundamBootNonce.value += 1
+    }
+  }
+
+  function setGundamBootDurationMs(durationMs: number): void {
+    const nextDuration = normalizeGundamBootDuration(durationMs)
+    gundamBootDurationMs.value = nextDuration
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(gundamBootDurationStorageKey, String(nextDuration))
+    }
+  }
+
+  function toggleUIMode(): void {
+    if (uiMode.value === 'official') {
+      setUIMode('gundam')
+      return
+    }
+    setUIMode('official')
+  }
+
+  function initUIMode(): void {
+    if (typeof localStorage === 'undefined') {
+      return
+    }
+    applyGundamImageURL(localStorage.getItem(gundamImageStorageKey))
+    gundamBootDurationMs.value = normalizeGundamBootDuration(localStorage.getItem(gundamBootDurationStorageKey))
+    setUIMode(normalizeUIMode(localStorage.getItem(uiModeStorageKey)))
+  }
 
   /**
    * Toggle sidebar collapsed state
@@ -209,7 +293,10 @@ export const useAppStore = defineStore('app', () => {
     try {
       return await operation()
     } catch (error) {
-      const message = errorMessage || (error as { message?: string }).message || 'An error occurred'
+      const message =
+        errorMessage ||
+        (error as { message?: string }).message ||
+        i18n.global.t('common.unknownError')
       showError(message)
       return null
     } finally {
@@ -223,6 +310,7 @@ export const useAppStore = defineStore('app', () => {
    */
   function reset(): void {
     sidebarCollapsed.value = false
+    uiMode.value = 'official'
     loading.value = false
     loadingCount.value = 0
     toasts.value = []
@@ -284,6 +372,9 @@ export const useAppStore = defineStore('app', () => {
    * Apply settings to store state (internal helper to avoid code duplication)
    */
   function applySettings(config: PublicSettings): void {
+    if (typeof window !== 'undefined') {
+      window.__APP_CONFIG__ = { ...config }
+    }
     cachedPublicSettings.value = config
     siteName.value = config.site_name || 'Sub2API'
     siteLogo.value = config.site_logo || ''
@@ -313,6 +404,7 @@ export const useAppStore = defineStore('app', () => {
       return {
         registration_enabled: false,
         email_verify_enabled: false,
+        force_email_on_third_party_signup: false,
         registration_email_suffix_whitelist: [],
         promo_code_enabled: true,
         password_reset_enabled: false,
@@ -327,16 +419,30 @@ export const useAppStore = defineStore('app', () => {
         doc_url: docUrl.value,
         home_content: '',
         hide_ccs_import_button: false,
-        purchase_subscription_enabled: false,
-        purchase_subscription_url: '',
+        payment_enabled: false,
+        table_default_page_size: 20,
+        table_page_size_options: [10, 20, 50, 100],
         custom_menu_items: [],
         custom_endpoints: [],
         linuxdo_oauth_enabled: false,
+        wechat_oauth_enabled: false,
+        wechat_oauth_open_enabled: false,
+        wechat_oauth_mp_enabled: false,
+        wechat_oauth_mobile_enabled: false,
         oidc_oauth_enabled: false,
         oidc_oauth_provider_name: 'OIDC',
-        sora_client_enabled: false,
+        github_oauth_enabled: false,
+        google_oauth_enabled: false,
         backend_mode_enabled: false,
-        version: siteVersion.value
+        version: siteVersion.value,
+        balance_low_notify_enabled: false,
+        account_quota_notify_enabled: false,
+        balance_low_notify_threshold: 0,
+        channel_monitor_enabled: true,
+        channel_monitor_default_interval_seconds: 60,
+        available_channels_enabled: false,
+        risk_control_enabled: false,
+        affiliate_enabled: false,
       }
     }
 
@@ -385,6 +491,9 @@ export const useAppStore = defineStore('app', () => {
     // State
     sidebarCollapsed,
     mobileOpen,
+    uiMode,
+    gundamBootNonce,
+    gundamBootDurationMs,
     loading,
     toasts,
 
@@ -413,6 +522,11 @@ export const useAppStore = defineStore('app', () => {
 
     // Actions
     toggleSidebar,
+    setUIMode,
+    toggleUIMode,
+    applyGundamImageURL,
+    setGundamBootDurationMs,
+    initUIMode,
     setSidebarCollapsed,
     toggleMobileSidebar,
     setMobileOpen,

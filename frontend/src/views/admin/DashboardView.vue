@@ -1,14 +1,29 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
+    <div class="admin-dashboard-shell space-y-6">
       <!-- Loading State -->
       <div v-if="loading" class="flex items-center justify-center py-12">
         <LoadingSpinner />
       </div>
 
       <template v-else-if="stats">
+        <div class="gundam-dashboard-banner" aria-hidden="true">
+          <div>
+            <span class="gundam-dashboard-kicker">MOBILE SUIT MAINTENANCE TERMINAL</span>
+            <strong>HANGAR COMMAND / CONTROL CORE</strong>
+            <span class="gundam-dashboard-subline">ACCOUNT RACK / TOKEN RISK / SERVICE TELEMETRY</span>
+          </div>
+          <div class="gundam-dashboard-unit" aria-hidden="true">
+            <span class="gundam-dashboard-scanline"></span>
+          </div>
+          <div class="gundam-dashboard-status">
+            <span>MAINTENANCE BUS</span>
+            <b>LOCKED</b>
+          </div>
+        </div>
+
         <!-- Row 1: Core Stats -->
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="dashboard-stat-grid grid grid-cols-2 gap-4 lg:grid-cols-4">
           <!-- Total API Keys -->
           <div class="card p-4">
             <div class="flex items-center gap-3">
@@ -96,7 +111,7 @@
         </div>
 
         <!-- Row 2: Token Stats -->
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="dashboard-stat-grid grid grid-cols-2 gap-4 lg:grid-cols-4">
           <!-- Today Tokens -->
           <div class="card p-4">
             <div class="flex items-center gap-3">
@@ -112,15 +127,21 @@
                 </p>
                 <p class="text-xs">
                   <span
-                    class="text-amber-600 dark:text-amber-400"
+                    class="text-green-600 dark:text-green-400"
                     :title="t('admin.dashboard.actual')"
                     >${{ formatCost(stats.today_actual_cost) }}</span
                   >
+                  <span class="text-gray-400 dark:text-gray-500"> / </span>
+                  <span
+                    class="text-orange-500 dark:text-orange-400"
+                    :title="t('admin.dashboard.accountCost')"
+                    >${{ formatCost(stats.today_account_cost) }}</span
+                  >
+                  <span class="text-gray-400 dark:text-gray-500"> / </span>
                   <span
                     class="text-gray-400 dark:text-gray-500"
                     :title="t('admin.dashboard.standard')"
-                  >
-                    / ${{ formatCost(stats.today_cost) }}</span
+                    >${{ formatCost(stats.today_cost) }}</span
                   >
                 </p>
               </div>
@@ -142,15 +163,21 @@
                 </p>
                 <p class="text-xs">
                   <span
-                    class="text-indigo-600 dark:text-indigo-400"
+                    class="text-green-600 dark:text-green-400"
                     :title="t('admin.dashboard.actual')"
                     >${{ formatCost(stats.total_actual_cost) }}</span
                   >
+                  <span class="text-gray-400 dark:text-gray-500"> / </span>
+                  <span
+                    class="text-orange-500 dark:text-orange-400"
+                    :title="t('admin.dashboard.accountCost')"
+                    >${{ formatCost(stats.total_account_cost) }}</span
+                  >
+                  <span class="text-gray-400 dark:text-gray-500"> / </span>
                   <span
                     class="text-gray-400 dark:text-gray-500"
                     :title="t('admin.dashboard.standard')"
-                  >
-                    / ${{ formatCost(stats.total_cost) }}</span
+                    >${{ formatCost(stats.total_cost) }}</span
                   >
                 </p>
               </div>
@@ -207,7 +234,7 @@
         <!-- Charts Section -->
         <div class="space-y-6">
           <!-- Date Range Filter -->
-          <div class="card p-4">
+          <div class="dashboard-control-panel card p-4">
             <div class="flex flex-wrap items-center gap-4">
               <div class="flex items-center gap-2">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -238,7 +265,7 @@
           </div>
 
           <!-- Charts Grid -->
-          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div class="dashboard-chart-grid grid grid-cols-1 gap-6 lg:grid-cols-2">
             <ModelDistributionChart
               :model-stats="modelStats"
               :enable-ranking-view="true"
@@ -257,7 +284,7 @@
           </div>
 
           <!-- User Usage Trend (Full Width) -->
-          <div class="card p-4">
+          <div class="dashboard-terminal-card card p-4">
             <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
               {{ t('admin.dashboard.recentUsage') }} (Top 12)
             </h3>
@@ -381,8 +408,8 @@ const isDarkMode = computed(() => {
 
 // Chart colors
 const chartColors = computed(() => ({
-  text: isDarkMode.value ? '#e5e7eb' : '#374151',
-  grid: isDarkMode.value ? '#374151' : '#e5e7eb'
+  text: appStore.uiMode === 'gundam' ? '#d7dee4' : isDarkMode.value ? '#e5e7eb' : '#374151',
+  grid: appStore.uiMode === 'gundam' ? 'rgba(83, 142, 151, 0.18)' : isDarkMode.value ? '#374151' : '#e5e7eb'
 }))
 
 // Line chart options (for user trend chart)
@@ -478,20 +505,36 @@ const userTrendChartData = computed(() => {
   })
 
   const sortedDates = Array.from(allDates).sort()
-  const colors = [
-    '#3b82f6',
-    '#10b981',
-    '#f59e0b',
-    '#ef4444',
-    '#8b5cf6',
-    '#ec4899',
-    '#14b8a6',
-    '#f97316',
-    '#6366f1',
-    '#84cc16',
-    '#06b6d4',
-    '#a855f7'
-  ]
+  const colors =
+    appStore.uiMode === 'gundam'
+      ? [
+          '#40969a',
+          '#86632d',
+          '#52606b',
+          '#70452f',
+          '#2f5574',
+          '#7e8c92',
+          '#365d60',
+          '#6f5b37',
+          '#4d6576',
+          '#5f7377',
+          '#9ba5aa',
+          '#7a4b44'
+        ]
+      : [
+          '#3b82f6',
+          '#10b981',
+          '#f59e0b',
+          '#ef4444',
+          '#8b5cf6',
+          '#ec4899',
+          '#14b8a6',
+          '#f97316',
+          '#6366f1',
+          '#84cc16',
+          '#06b6d4',
+          '#a855f7'
+        ]
 
   const datasets = Array.from(userGroups.values()).map((group, idx) => ({
     label: group.name,
@@ -525,15 +568,16 @@ const formatNumber = (value: number): string => {
   return value.toLocaleString()
 }
 
-const formatCost = (value: number): string => {
-  if (value >= 1000) {
-    return (value / 1000).toFixed(2) + 'K'
-  } else if (value >= 1) {
-    return value.toFixed(2)
-  } else if (value >= 0.01) {
-    return value.toFixed(3)
+const formatCost = (value: number | undefined): string => {
+  const safeValue = Number.isFinite(value) ? value as number : 0
+  if (safeValue >= 1000) {
+    return (safeValue / 1000).toFixed(2) + 'K'
+  } else if (safeValue >= 1) {
+    return safeValue.toFixed(2)
+  } else if (safeValue >= 0.01) {
+    return safeValue.toFixed(3)
   }
-  return value.toFixed(4)
+  return safeValue.toFixed(4)
 }
 
 const formatDuration = (ms: number): string => {
