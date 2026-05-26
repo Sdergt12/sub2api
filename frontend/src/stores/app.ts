@@ -15,7 +15,7 @@ import {
 import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
 
 export const useAppStore = defineStore('app', () => {
-  type UIMode = 'official' | 'gundam' | 'gundam-lite'
+  type UIMode = 'official' | 'gundam'
   const uiModeStorageKey = 'sub2api_ui_mode'
   const gundamImageStorageKey = 'sub2api_gundam_image_url'
   const gundamBootDurationStorageKey = 'sub2api_gundam_boot_duration_ms'
@@ -64,7 +64,8 @@ export const useAppStore = defineStore('app', () => {
   // ==================== Actions ====================
 
   function normalizeUIMode(value: unknown): UIMode {
-    if (value === 'gundam' || value === 'gundam-lite') return value
+    // 旧版本存在 gundam-lite；这里迁移到强 Gundam 模式，避免刷新后进入不可达状态。
+    if (value === 'gundam' || value === 'gundam-lite') return 'gundam'
     return 'official'
   }
 
@@ -122,10 +123,6 @@ export const useAppStore = defineStore('app', () => {
   function toggleUIMode(): void {
     if (uiMode.value === 'official') {
       setUIMode('gundam')
-      return
-    }
-    if (uiMode.value === 'gundam') {
-      setUIMode('gundam-lite')
       return
     }
     setUIMode('official')

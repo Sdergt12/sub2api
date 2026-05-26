@@ -17,7 +17,7 @@ function initThemeClass() {
 function initUIModeClass() {
   const savedMode = localStorage.getItem('sub2api_ui_mode')
   document.documentElement.dataset.uiMode =
-    savedMode === 'gundam' || savedMode === 'gundam-lite' ? savedMode : 'official'
+    savedMode === 'gundam' || savedMode === 'gundam-lite' ? 'gundam' : 'official'
 }
 
 async function bootstrap() {

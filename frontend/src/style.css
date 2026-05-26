@@ -735,497 +735,6 @@
 }
 
 @layer components {
-  [data-ui-mode='gundam'],
-  [data-ui-mode='gundam-lite'] {
-    --hud-blue: 37 99 235;
-    --hud-red: 220 38 38;
-    --hud-yellow: 234 179 8;
-    --hud-panel: 255 255 255;
-  }
-
-  [data-ui-mode='gundam'] body {
-    background:
-      var(--sub2api-gundam-image-url, none),
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420' viewBox='0 0 420 420'%3E%3Cg fill='none' stroke='%232563eb' stroke-opacity='.18' stroke-width='2'%3E%3Cpath d='M210 32l58 48 18 86 62 42-62 38-18 92H152l-18-92-62-38 62-42 18-86z'/%3E%3Cpath d='M151 124h118l-28 58h-62zM178 212h64l-12 80h-40zM126 246l-70 82M294 246l70 82M162 88l-50-40M258 88l50-40'/%3E%3C/g%3E%3C/svg%3E"),
-      linear-gradient(rgba(37, 99, 235, 0.055) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px),
-      radial-gradient(circle at 18% 10%, rgba(37, 99, 235, 0.14), transparent 28rem),
-      radial-gradient(circle at 88% 4%, rgba(234, 179, 8, 0.14), transparent 22rem),
-      linear-gradient(135deg, #f8fbff 0%, #eef4fb 46%, #ffffff 100%);
-    background-attachment: fixed, fixed, fixed, fixed, fixed, fixed, fixed;
-    background-position: right 2rem bottom 2rem, right 2rem bottom 2rem, 0 0, 0 0, center, center, center;
-    background-repeat: no-repeat, no-repeat, repeat, repeat, no-repeat, no-repeat, no-repeat;
-    background-size: min(48vw, 620px), min(48vw, 620px), 28px 28px, 28px 28px, auto, auto, auto;
-  }
-
-  [data-ui-mode='gundam'].dark body {
-    background:
-      var(--sub2api-gundam-image-url, none),
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420' viewBox='0 0 420 420'%3E%3Cg fill='none' stroke='%2393c5fd' stroke-opacity='.24' stroke-width='2'%3E%3Cpath d='M210 32l58 48 18 86 62 42-62 38-18 92H152l-18-92-62-38 62-42 18-86z'/%3E%3Cpath d='M151 124h118l-28 58h-62zM178 212h64l-12 80h-40zM126 246l-70 82M294 246l70 82M162 88l-50-40M258 88l50-40'/%3E%3C/g%3E%3C/svg%3E"),
-      linear-gradient(rgba(59, 130, 246, 0.07) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(59, 130, 246, 0.07) 1px, transparent 1px),
-      radial-gradient(circle at 18% 10%, rgba(59, 130, 246, 0.24), transparent 30rem),
-      radial-gradient(circle at 88% 4%, rgba(239, 68, 68, 0.18), transparent 24rem),
-      linear-gradient(135deg, #07111f 0%, #0b1628 52%, #101827 100%);
-    background-attachment: fixed, fixed, fixed, fixed, fixed, fixed, fixed;
-    background-position: right 2rem bottom 2rem, right 2rem bottom 2rem, 0 0, 0 0, center, center, center;
-    background-repeat: no-repeat, no-repeat, repeat, repeat, no-repeat, no-repeat, no-repeat;
-    background-size: min(48vw, 620px), min(48vw, 620px), 28px 28px, 28px 28px, auto, auto, auto;
-  }
-
-  [data-ui-mode='gundam-lite'] body {
-    background:
-      radial-gradient(circle at 18% 10%, rgba(37, 99, 235, 0.09), transparent 28rem),
-      linear-gradient(135deg, #f8fbff 0%, #f3f7fb 100%);
-  }
-
-  [data-ui-mode='gundam-lite'].dark body {
-    background:
-      radial-gradient(circle at 18% 10%, rgba(59, 130, 246, 0.16), transparent 30rem),
-      linear-gradient(135deg, #07111f 0%, #0b1628 100%);
-  }
-
-  [data-ui-mode='gundam'] .sidebar,
-  [data-ui-mode='gundam-lite'] .sidebar {
-    @apply border-blue-200 bg-white/95 shadow-xl dark:border-blue-900/60 dark:bg-slate-950/95;
-    background-image:
-      linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 34%),
-      repeating-linear-gradient(0deg, transparent 0 22px, rgba(37, 99, 235, 0.05) 22px 23px);
-  }
-
-  [data-ui-mode='gundam'] .sidebar-header {
-    @apply border-blue-100 dark:border-blue-900/60;
-  }
-
-  [data-ui-mode='gundam'] .sidebar-logo {
-    @apply rounded-md border border-blue-300 bg-white shadow-none dark:border-blue-700 dark:bg-slate-900;
-    clip-path: polygon(10% 0, 100% 0, 100% 76%, 84% 100%, 0 100%, 0 18%);
-  }
-
-  [data-ui-mode='gundam'] .sidebar-link {
-    @apply rounded-md border border-transparent;
-  }
-
-  [data-ui-mode='gundam'] .sidebar-link:hover {
-    @apply border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/70 dark:bg-blue-950/40 dark:text-blue-200;
-  }
-
-  [data-ui-mode='gundam'] .sidebar-link-active {
-    @apply border-blue-400 bg-blue-600 text-white shadow-none hover:bg-blue-700 dark:border-blue-400 dark:bg-blue-600 dark:text-white;
-    box-shadow: inset 3px 0 0 #facc15, 0 0 0 1px rgba(239, 68, 68, 0.18);
-  }
-
-  [data-ui-mode='gundam'] .card,
-  [data-ui-mode='gundam'] .glass-card,
-  [data-ui-mode='gundam'] .card-glass,
-  [data-ui-mode='gundam'] .dialog-container,
-  [data-ui-mode='gundam'] .modal-content {
-    @apply rounded-lg border-blue-200 bg-white/90 shadow-none dark:border-blue-900/70 dark:bg-slate-900/90;
-    position: relative;
-    overflow: hidden;
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(37, 99, 235, 0.08);
-  }
-
-  [data-ui-mode='gundam'] .card::before,
-  [data-ui-mode='gundam'] .glass-card::before,
-  [data-ui-mode='gundam'] .dialog-container::before,
-  [data-ui-mode='gundam'] .modal-content::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-radius: inherit;
-    border: 1px solid rgba(96, 165, 250, 0.08);
-    background:
-      linear-gradient(135deg, transparent 0 49%, rgba(250, 204, 21, 0.08) 50%, transparent 51%),
-      linear-gradient(315deg, transparent 0 88%, rgba(220, 38, 38, 0.06) 92%, transparent 100%);
-    mix-blend-mode: screen;
-    opacity: 0.9;
-  }
-
-  [data-ui-mode='gundam-lite'] .card,
-  [data-ui-mode='gundam-lite'] .glass-card,
-  [data-ui-mode='gundam-lite'] .card-glass,
-  [data-ui-mode='gundam-lite'] .dialog-container,
-  [data-ui-mode='gundam-lite'] .modal-content {
-    @apply rounded-lg border-blue-200 bg-white/[0.92] shadow-sm dark:border-blue-900/60 dark:bg-slate-900/[0.92];
-    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.06);
-  }
-
-  [data-ui-mode='gundam'] .card::after,
-  [data-ui-mode='gundam'] .glass-card::after {
-    content: '';
-    pointer-events: none;
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: linear-gradient(120deg, transparent 0 42%, rgba(37, 99, 235, 0.08) 48%, transparent 54%);
-    opacity: 0;
-    transform: translateX(-18%);
-  }
-
-  [data-ui-mode='gundam'] .card:hover::after,
-  [data-ui-mode='gundam'] .glass-card:hover::after {
-    animation: gundam-scan 1.4s ease-out;
-  }
-
-  [data-ui-mode='gundam'] .btn,
-  [data-ui-mode='gundam-lite'] .btn {
-    @apply rounded-md font-bold uppercase tracking-wide;
-  }
-
-  [data-ui-mode='gundam'] .btn-primary {
-    @apply from-blue-600 to-blue-700 shadow-none hover:from-blue-700 hover:to-blue-800;
-    box-shadow: inset 0 -3px 0 rgba(250, 204, 21, 0.75);
-  }
-
-  [data-ui-mode='gundam'] .btn-secondary {
-    @apply border-blue-200 bg-white text-blue-800 hover:border-blue-300 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-100 dark:hover:bg-blue-950/60;
-  }
-
-  [data-ui-mode='gundam'] .input,
-  [data-ui-mode='gundam'] select.input,
-  [data-ui-mode='gundam-lite'] .input,
-  [data-ui-mode='gundam-lite'] select.input {
-    @apply rounded-md border-blue-200 bg-white/95 focus:border-blue-500 focus:ring-blue-500/30 dark:border-blue-800 dark:bg-slate-950/80;
-  }
-
-  [data-ui-mode='gundam'] .table-container {
-    @apply rounded-lg border-blue-200 dark:border-blue-900/70;
-  }
-
-  [data-ui-mode='gundam'] .table th {
-    @apply bg-blue-50 text-blue-900 dark:bg-blue-950/50 dark:text-blue-100;
-  }
-
-  [data-ui-mode='gundam'] .table tbody tr:hover {
-    @apply bg-blue-50/70 dark:bg-blue-950/30;
-  }
-
-  [data-ui-mode='gundam'] .page-title {
-    @apply tracking-tight text-blue-950 dark:text-blue-50;
-  }
-
-  [data-ui-mode='gundam'] .badge-primary {
-    @apply bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200;
-  }
-
-  [data-ui-mode='gundam'] .dropdown {
-    @apply rounded-lg border-blue-200 dark:border-blue-900/70;
-  }
-
-  [data-ui-mode='gundam'] .animate-spin {
-    filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.35));
-  }
-
-  [data-ui-mode='gundam'] .card h1::before,
-  [data-ui-mode='gundam'] .card h2::before {
-    content: '';
-    display: inline-block;
-    width: 0.55rem;
-    height: 0.55rem;
-    margin-right: 0.45rem;
-    border-radius: 999px;
-    background: #22c55e;
-    box-shadow: 0 0 12px rgba(34, 197, 94, 0.75);
-    vertical-align: 0.08rem;
-  }
-
-  .gundam-boot-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: grid;
-    place-items: center;
-    overflow: hidden;
-    color: #dbeafe;
-    background:
-      radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.32), transparent 28rem),
-      radial-gradient(circle at 80% 20%, rgba(220, 38, 38, 0.22), transparent 24rem),
-      linear-gradient(135deg, rgba(3, 7, 18, 0.96), rgba(15, 23, 42, 0.98));
-    cursor: pointer;
-  }
-
-  .gundam-boot-overlay::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      linear-gradient(90deg, rgba(96, 165, 250, 0.08) 1px, transparent 1px),
-      linear-gradient(rgba(96, 165, 250, 0.08) 1px, transparent 1px);
-    background-size: 80px 80px;
-    opacity: 0.24;
-  }
-
-  .gundam-boot-grid {
-    position: absolute;
-    inset: 0;
-    background:
-      linear-gradient(rgba(96, 165, 250, 0.14) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(96, 165, 250, 0.14) 1px, transparent 1px);
-    background-size: 36px 36px;
-    mask-image: radial-gradient(circle at center, black 0 55%, transparent 82%);
-  }
-
-  .gundam-boot-noise {
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-    background-size: 3px 3px;
-    mix-blend-mode: screen;
-    opacity: 0.12;
-    animation: gundam-noise 3.2s steps(2, end) infinite;
-  }
-
-  .gundam-boot-radar {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: min(72vw, 720px);
-    aspect-ratio: 1;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-  }
-
-  .gundam-boot-radar span {
-    position: absolute;
-    inset: 0;
-    border: 1px solid rgba(96, 165, 250, 0.18);
-    border-radius: 999px;
-    box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.04);
-  }
-
-  .gundam-boot-radar span:nth-child(2) {
-    inset: 18%;
-  }
-
-  .gundam-boot-radar span:nth-child(3) {
-    inset: 38%;
-  }
-
-  .gundam-boot-frame {
-    position: relative;
-    width: min(92vw, 760px);
-    min-height: 360px;
-    display: grid;
-    grid-template-columns: minmax(180px, 0.8fr) 1fr;
-    gap: 1.5rem;
-    align-items: center;
-    padding: clamp(1.25rem, 4vw, 2.5rem);
-    border: 1px solid rgba(147, 197, 253, 0.72);
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.72));
-    clip-path: polygon(0 0, calc(100% - 34px) 0, 100% 34px, 100% 100%, 34px 100%, 0 calc(100% - 34px));
-    box-shadow: 0 0 42px rgba(37, 99, 235, 0.35), inset 0 0 0 1px rgba(250, 204, 21, 0.2);
-  }
-
-  .gundam-boot-rails {
-    position: absolute;
-    inset: 1rem;
-    border: 1px solid rgba(147, 197, 253, 0.18);
-    clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px));
-  }
-
-  .gundam-boot-corners::before,
-  .gundam-boot-corners::after {
-    content: '';
-    position: absolute;
-    width: 120px;
-    height: 10px;
-    background: linear-gradient(90deg, #2563eb, #facc15, #dc2626);
-  }
-
-  .gundam-boot-corners::before {
-    top: 16px;
-    left: 18px;
-  }
-
-  .gundam-boot-corners::after {
-    right: 18px;
-    bottom: 16px;
-    transform: rotate(180deg);
-  }
-
-  .gundam-boot-unit {
-    display: grid;
-    place-items: center;
-    min-height: 240px;
-    border: 1px solid rgba(96, 165, 250, 0.38);
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.16), transparent 64%);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .gundam-boot-unit-svg {
-    width: min(42vw, 260px);
-    max-width: 100%;
-    fill: rgba(96, 165, 250, 0.1);
-    stroke: rgba(219, 234, 254, 0.86);
-    stroke-width: 3;
-    filter: drop-shadow(0 0 18px rgba(96, 165, 250, 0.42));
-  }
-
-  .gundam-boot-reticle {
-    position: absolute;
-    inset: 18%;
-    border: 1px solid rgba(250, 204, 21, 0.35);
-    clip-path: polygon(0 14%, 14% 0, 86% 0, 100% 14%, 100% 86%, 86% 100%, 14% 100%, 0 86%);
-  }
-
-  .gundam-boot-kicker {
-    color: #facc15;
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.22em;
-  }
-
-  .gundam-boot-copy h2 {
-    margin-top: 0.5rem;
-    font-size: clamp(2.4rem, 8vw, 4.75rem);
-    font-weight: 950;
-    line-height: 0.9;
-    letter-spacing: -0.06em;
-  }
-
-  .gundam-boot-metrics {
-    margin-top: 1rem;
-    display: grid;
-    gap: 0.55rem;
-  }
-
-  .gundam-boot-status {
-    display: flex;
-    max-width: 320px;
-    justify-content: space-between;
-    border-bottom: 1px solid rgba(147, 197, 253, 0.24);
-    font-size: 0.82rem;
-    letter-spacing: 0.12em;
-  }
-
-  .gundam-boot-status b {
-    color: #22c55e;
-  }
-
-  .gundam-boot-skip {
-    position: absolute;
-    right: 1rem;
-    top: 1rem;
-    border: 1px solid rgba(147, 197, 253, 0.5);
-    padding: 0.35rem 0.7rem;
-    color: #bfdbfe;
-    font-size: 0.78rem;
-    backdrop-filter: blur(8px);
-  }
-
-  .gundam-boot-bars {
-    margin-top: 1.1rem;
-    display: grid;
-    gap: 0.45rem;
-  }
-
-  .gundam-boot-bars i {
-    display: block;
-    height: 0.6rem;
-    width: var(--boot-width, 72%);
-    border: 1px solid rgba(96, 165, 250, 0.38);
-    background:
-      linear-gradient(90deg, rgba(250, 204, 21, 0.95), rgba(37, 99, 235, 0.95) 72%, rgba(37, 99, 235, 0.15)),
-      linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent);
-    box-shadow: 0 0 16px rgba(37, 99, 235, 0.2);
-    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 4px 50%);
-  }
-
-  .gundam-boot-scan {
-    position: absolute;
-    inset: -20% 0;
-    background: linear-gradient(180deg, transparent 0 44%, rgba(96, 165, 250, 0.32) 50%, transparent 56%);
-    animation: gundam-boot-scan 1.55s ease-in-out both;
-  }
-
-  .gundam-boot-fade-enter-active,
-  .gundam-boot-fade-leave-active {
-    transition: opacity 0.22s ease;
-  }
-
-  .gundam-boot-fade-enter-from,
-  .gundam-boot-fade-leave-to {
-    opacity: 0;
-  }
-
-  @keyframes gundam-boot-scan {
-    from {
-      transform: translateY(-45%);
-    }
-    to {
-      transform: translateY(45%);
-    }
-  }
-
-  @media (max-width: 640px) {
-    .gundam-boot-frame {
-      grid-template-columns: 1fr;
-      min-height: auto;
-    }
-
-    .gundam-boot-unit {
-      min-height: 180px;
-    }
-  }
-
-  [data-ui-mode='gundam-lite'] .sidebar-link-active {
-    @apply border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-100;
-  }
-
-  @keyframes gundam-scan {
-    0% {
-      opacity: 0;
-      transform: translateX(-35%);
-    }
-    35% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-      transform: translateX(35%);
-    }
-  }
-
-  @keyframes gundam-noise {
-    0%,
-    100% {
-      transform: translate3d(0, 0, 0);
-    }
-    50% {
-      transform: translate3d(-1%, 1%, 0);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    [data-ui-mode='gundam'] .card:hover::after,
-    [data-ui-mode='gundam'] .glass-card:hover::after {
-      animation: none;
-    }
-
-    [data-ui-mode='gundam'] *,
-    [data-ui-mode='gundam-lite'] * {
-      transition-duration: 0.01ms !important;
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-    }
-
-    .gundam-boot-scan {
-      animation: none;
-      opacity: 0.18;
-    }
-
-    .gundam-boot-noise {
-      animation: none;
-      opacity: 0.04;
-    }
-  }
-
   /* ============ Gundam 军事整备终端增强层 ============ */
   [data-ui-mode='gundam'] {
     --gundam-armor: 231 233 237;
@@ -1237,18 +746,18 @@
     --gundam-alert: 217 70 70;
     --gundam-signal: 79 195 247;
     --gundam-accent: 59 130 246;
-    --gundam-text: 15 23 42;
+    --gundam-text: 226 232 240;
   }
 
   [data-ui-mode='gundam'] body {
     color: rgb(var(--gundam-text));
     background:
       var(--sub2api-gundam-image-url, url('/assets/gundam/maintenance-bay.webp')),
-      linear-gradient(180deg, rgba(6, 10, 18, 0.68), rgba(6, 10, 18, 0.88)),
-      radial-gradient(circle at 16% 8%, rgba(255, 255, 255, 0.12), transparent 24rem),
-      radial-gradient(circle at 82% 14%, rgba(245, 183, 37, 0.12), transparent 20rem),
-      linear-gradient(135deg, rgb(219 224 231) 0%, rgb(240 243 247) 36%, rgb(21 28 40) 100%);
-    background-blend-mode: normal, multiply, screen, screen, normal;
+      linear-gradient(180deg, rgba(4, 8, 15, 0.72), rgba(4, 8, 15, 0.94)),
+      radial-gradient(circle at 18% 12%, rgba(79, 195, 247, 0.14), transparent 24rem),
+      radial-gradient(circle at 82% 12%, rgba(245, 183, 37, 0.1), transparent 20rem),
+      linear-gradient(135deg, rgb(13 18 28) 0%, rgb(8 13 20) 42%, rgb(5 9 15) 100%);
+    background-blend-mode: multiply, multiply, screen, screen, normal;
     background-position: center center, center center, center center, center center, center center;
     background-size: cover, cover, auto, auto, cover;
   }
@@ -1266,21 +775,8 @@
     background-size: cover, cover, auto, auto, cover;
   }
 
-  [data-ui-mode='gundam-lite'] body {
-    background:
-      linear-gradient(180deg, rgba(10, 16, 26, 0.05), rgba(10, 16, 26, 0.08)),
-      linear-gradient(135deg, #f7f8fb 0%, #edf2f7 100%);
-  }
-
-  [data-ui-mode='gundam-lite'].dark body {
-    background:
-      linear-gradient(180deg, rgba(10, 16, 26, 0.12), rgba(10, 16, 26, 0.16)),
-      linear-gradient(135deg, #050b13 0%, #0b1320 100%);
-  }
-
   [data-ui-mode='gundam'] body::before,
-  [data-ui-mode='gundam'] body::after,
-  [data-ui-mode='gundam-lite'] body::before {
+  [data-ui-mode='gundam'] body::after {
     content: '';
     position: fixed;
     inset: 0;
@@ -1304,28 +800,20 @@
     opacity: 0.78;
   }
 
-  [data-ui-mode='gundam-lite'] body::before {
-    background:
-      linear-gradient(180deg, rgba(245, 183, 37, 0.08), transparent 24%),
-      repeating-linear-gradient(90deg, rgba(59, 130, 246, 0.04) 0 1px, transparent 1px 18px);
-    opacity: 0.45;
-  }
-
-  [data-ui-mode='gundam'] .sidebar,
-  [data-ui-mode='gundam-lite'] .sidebar {
-    @apply border border-slate-300/90 bg-slate-100/[0.94] shadow-[0_0_0_1px_rgba(245,183,37,0.12),0_20px_50px_rgba(15,23,42,0.18)] dark:border-slate-700/90 dark:bg-slate-950/[0.92];
+  [data-ui-mode='gundam'] .sidebar {
+    @apply border border-slate-700/90 bg-slate-950/[0.94] shadow-[0_0_0_1px_rgba(245,183,37,0.12),0_20px_50px_rgba(4,8,15,0.42)];
     background-image:
       linear-gradient(135deg, rgba(245, 183, 37, 0.08), transparent 22%, transparent 72%, rgba(79, 195, 247, 0.08)),
-      repeating-linear-gradient(0deg, transparent 0 20px, rgba(15, 23, 42, 0.03) 20px 21px);
+      repeating-linear-gradient(0deg, transparent 0 20px, rgba(226, 232, 240, 0.035) 20px 21px);
   }
 
   [data-ui-mode='gundam'] .sidebar-header {
-    @apply border-b border-slate-300/80 pb-4 dark:border-slate-700/80;
+    @apply border-b border-slate-700/80 pb-4;
   }
 
   [data-ui-mode='gundam'] .sidebar-logo {
     position: relative;
-    @apply rounded-none border border-slate-300 bg-gradient-to-br from-white to-slate-100 shadow-none dark:border-slate-700 dark:from-slate-900 dark:to-slate-950;
+    @apply rounded-none border border-slate-700 bg-gradient-to-br from-slate-900 to-slate-950 shadow-none;
     clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
     box-shadow: inset 0 0 0 1px rgba(245, 183, 37, 0.08);
   }
@@ -1341,21 +829,18 @@
     letter-spacing: 0.28em;
   }
 
-  [data-ui-mode='gundam'] .sidebar-link,
-  [data-ui-mode='gundam-lite'] .sidebar-link {
+  [data-ui-mode='gundam'] .sidebar-link {
     @apply rounded-none border border-transparent;
     clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
   }
 
-  [data-ui-mode='gundam'] .sidebar-link:hover,
-  [data-ui-mode='gundam-lite'] .sidebar-link:hover {
-    @apply border-slate-300 bg-slate-200/80 text-slate-900 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-50;
+  [data-ui-mode='gundam'] .sidebar-link:hover {
+    @apply border-slate-700 bg-slate-800/60 text-slate-50;
     box-shadow: inset 3px 0 0 rgb(245 183 37 / 0.92);
   }
 
-  [data-ui-mode='gundam'] .sidebar-link-active,
-  [data-ui-mode='gundam-lite'] .sidebar-link-active {
-    @apply border-slate-400 bg-slate-200 text-slate-950 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-50;
+  [data-ui-mode='gundam'] .sidebar-link-active {
+    @apply border-slate-600 bg-slate-800 text-slate-50;
     box-shadow:
       inset 0 0 0 1px rgba(245, 183, 37, 0.35),
       inset 0 -3px 0 rgba(217, 70, 70, 0.5),
@@ -1367,7 +852,7 @@
   [data-ui-mode='gundam'] .card-glass,
   [data-ui-mode='gundam'] .dialog-container,
   [data-ui-mode='gundam'] .modal-content {
-    @apply rounded-none border border-slate-300 bg-white/90 shadow-none dark:border-slate-700 dark:bg-slate-950/[0.88];
+    @apply rounded-none border border-slate-700 bg-slate-950/[0.9] text-slate-100 shadow-none;
     position: relative;
     overflow: hidden;
     clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
@@ -1409,18 +894,7 @@
     z-index: 1;
   }
 
-  [data-ui-mode='gundam-lite'] .card,
-  [data-ui-mode='gundam-lite'] .glass-card,
-  [data-ui-mode='gundam-lite'] .card-glass,
-  [data-ui-mode='gundam-lite'] .dialog-container,
-  [data-ui-mode='gundam-lite'] .modal-content {
-    @apply rounded-none border border-slate-300 bg-white/[0.94] shadow-sm dark:border-slate-700 dark:bg-slate-950/[0.94];
-    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
-    box-shadow: inset 0 0 0 1px rgba(245, 183, 37, 0.05);
-  }
-
-  [data-ui-mode='gundam'] .btn,
-  [data-ui-mode='gundam-lite'] .btn {
+  [data-ui-mode='gundam'] .btn {
     @apply rounded-none font-bold uppercase tracking-[0.16em];
     clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
   }
@@ -1438,15 +912,13 @@
   }
 
   [data-ui-mode='gundam'] .btn-secondary {
-    @apply border border-slate-300 bg-slate-100 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+    @apply border border-slate-700 bg-slate-900 text-slate-100;
     box-shadow: inset 0 0 0 1px rgba(245, 183, 37, 0.08);
   }
 
   [data-ui-mode='gundam'] .input,
-  [data-ui-mode='gundam'] select.input,
-  [data-ui-mode='gundam-lite'] .input,
-  [data-ui-mode='gundam-lite'] select.input {
-    @apply rounded-none border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100;
+  [data-ui-mode='gundam'] select.input {
+    @apply rounded-none border border-slate-700 bg-slate-950 text-slate-100;
     box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.03);
     clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
   }
@@ -1459,17 +931,17 @@
   }
 
   [data-ui-mode='gundam'] .table-container {
-    @apply rounded-none border border-slate-300 dark:border-slate-700;
+    @apply rounded-none border border-slate-700;
     overflow: hidden;
     clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
   }
 
   [data-ui-mode='gundam'] .table {
-    background: rgba(255, 255, 255, 0.94);
+    background: rgba(15, 23, 42, 0.92);
   }
 
   [data-ui-mode='gundam'] .table th {
-    @apply bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100;
+    @apply bg-slate-900 text-slate-100;
     border-bottom: 1px solid rgba(15, 23, 42, 0.12);
     text-transform: uppercase;
     letter-spacing: 0.12em;
@@ -1481,7 +953,7 @@
   }
 
   [data-ui-mode='gundam'] .table tbody tr:hover {
-    @apply bg-slate-100/80 dark:bg-slate-800/50;
+    @apply bg-slate-800/50;
   }
 
   [data-ui-mode='gundam'] .page-title {
@@ -1489,12 +961,12 @@
   }
 
   [data-ui-mode='gundam'] .badge-primary {
-    @apply bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100;
+    @apply bg-slate-800 text-slate-100;
     box-shadow: inset 0 0 0 1px rgba(245, 183, 37, 0.12);
   }
 
   [data-ui-mode='gundam'] .dropdown {
-    @apply rounded-none border border-slate-300 dark:border-slate-700;
+    @apply rounded-none border border-slate-700 bg-slate-950 text-slate-100;
     clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
   }
 
@@ -1561,7 +1033,7 @@
 
   .ui-mode-selector-options {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.25rem;
   }
 
@@ -1597,26 +1069,24 @@
     background: rgb(30 41 59);
   }
 
-  [data-ui-mode='gundam'] .ui-mode-selector,
-  [data-ui-mode='gundam-lite'] .ui-mode-selector {
+  [data-ui-mode='gundam'] .ui-mode-selector {
     border-radius: 0;
     border-color: rgb(148 163 184 / 0.72);
     background:
       linear-gradient(135deg, rgb(245 183 37 / 0.08), transparent 38%),
-      rgb(241 245 249 / 0.88);
+      rgb(15 23 42 / 0.82);
     clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
     box-shadow: inset 0 0 0 1px rgb(245 183 37 / 0.12);
   }
 
-  [data-ui-mode='gundam'].dark .ui-mode-selector,
-  [data-ui-mode='gundam-lite'].dark .ui-mode-selector {
+  [data-ui-mode='gundam'].dark .ui-mode-selector {
     background:
       linear-gradient(135deg, rgb(245 183 37 / 0.08), transparent 38%),
       rgb(15 23 42 / 0.82);
   }
 
   [data-ui-mode='gundam'] .ui-mode-selector-title {
-    color: rgb(30 41 59);
+    color: rgb(226 232 240);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -1625,34 +1095,30 @@
     color: rgb(226 232 240);
   }
 
-  [data-ui-mode='gundam'] .ui-mode-option,
-  [data-ui-mode='gundam-lite'] .ui-mode-option {
+  [data-ui-mode='gundam'] .ui-mode-option {
     border-radius: 0;
     border-color: rgb(148 163 184 / 0.54);
-    background: rgb(226 232 240 / 0.72);
-    color: rgb(51 65 85);
+    background: rgb(15 23 42 / 0.88);
+    color: rgb(203 213 225);
     font-size: 0.62rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
   }
 
-  [data-ui-mode='gundam'].dark .ui-mode-option,
-  [data-ui-mode='gundam-lite'].dark .ui-mode-option {
+  [data-ui-mode='gundam'].dark .ui-mode-option {
     background: rgb(15 23 42 / 0.88);
     color: rgb(203 213 225);
   }
 
-  [data-ui-mode='gundam'] .ui-mode-option-active,
-  [data-ui-mode='gundam-lite'] .ui-mode-option-active {
+  [data-ui-mode='gundam'] .ui-mode-option-active {
     border-color: rgb(245 183 37 / 0.9);
     color: rgb(15 23 42);
     background: linear-gradient(180deg, rgb(245 183 37), rgb(217 119 6));
     box-shadow: inset 0 -2px 0 rgb(217 70 70 / 0.8);
   }
 
-  [data-ui-mode='gundam'].dark .ui-mode-option-active,
-  [data-ui-mode='gundam-lite'].dark .ui-mode-option-active {
+  [data-ui-mode='gundam'].dark .ui-mode-option-active {
     color: rgb(15 23 42);
   }
 
@@ -1690,20 +1156,20 @@
       repeating-linear-gradient(180deg, rgb(226 232 240 / 0.16) 0 14px, transparent 14px 32px);
   }
 
-  [data-ui-mode='gundam'] .admin-dashboard-shell > *,
-  [data-ui-mode='gundam-lite'] .admin-dashboard-shell > * {
+  [data-ui-mode='gundam'] .admin-dashboard-shell > * {
     position: relative;
     z-index: 1;
   }
 
-  [data-ui-mode='gundam'] .gundam-dashboard-banner,
-  [data-ui-mode='gundam-lite'] .gundam-dashboard-banner {
-    display: flex;
+  [data-ui-mode='gundam'] .gundam-dashboard-banner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.56fr) auto;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
     border: 1px solid rgb(148 163 184 / 0.6);
-    padding: 0.95rem 1.1rem;
+    min-height: 10rem;
+    padding: 1rem 1.25rem;
     color: rgb(226 232 240);
     background:
       linear-gradient(90deg, rgb(15 23 42 / 0.94), rgb(30 41 59 / 0.84)),
@@ -1714,16 +1180,7 @@
       0 20px 44px rgb(15 23 42 / 0.18);
   }
 
-  [data-ui-mode='gundam-lite'] .gundam-dashboard-banner {
-    color: rgb(30 41 59);
-    background:
-      linear-gradient(90deg, rgb(241 245 249 / 0.96), rgb(226 232 240 / 0.86)),
-      linear-gradient(135deg, rgb(245 183 37 / 0.14), transparent 36%);
-    box-shadow: inset 0 0 0 1px rgb(245 183 37 / 0.08);
-  }
-
-  [data-ui-mode='gundam'] .gundam-dashboard-kicker,
-  [data-ui-mode='gundam-lite'] .gundam-dashboard-kicker {
+  [data-ui-mode='gundam'] .gundam-dashboard-kicker {
     display: block;
     color: rgb(245 183 37);
     font-size: 0.68rem;
@@ -1732,8 +1189,7 @@
     text-transform: uppercase;
   }
 
-  [data-ui-mode='gundam'] .gundam-dashboard-banner strong,
-  [data-ui-mode='gundam-lite'] .gundam-dashboard-banner strong {
+  [data-ui-mode='gundam'] .gundam-dashboard-banner strong {
     display: block;
     margin-top: 0.2rem;
     font-size: clamp(1.1rem, 2.4vw, 1.75rem);
@@ -1741,8 +1197,25 @@
     letter-spacing: -0.04em;
   }
 
-  [data-ui-mode='gundam'] .gundam-dashboard-status,
-  [data-ui-mode='gundam-lite'] .gundam-dashboard-status {
+  [data-ui-mode='gundam'] .gundam-dashboard-subline {
+    display: block;
+    margin-top: 0.45rem;
+    color: rgb(148 163 184);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+  }
+
+  [data-ui-mode='gundam'] .gundam-dashboard-unit {
+    min-height: 8rem;
+    background: url('/assets/gundam/hangar-frame.svg') center/contain no-repeat;
+    filter:
+      drop-shadow(0 0 12px rgb(79 195 247 / 0.22))
+      drop-shadow(0 0 18px rgb(245 183 37 / 0.12));
+    opacity: 0.92;
+  }
+
+  [data-ui-mode='gundam'] .gundam-dashboard-status {
     display: grid;
     gap: 0.12rem;
     min-width: 9.5rem;
@@ -1754,22 +1227,20 @@
     text-transform: uppercase;
   }
 
-  [data-ui-mode='gundam'] .gundam-dashboard-status b,
-  [data-ui-mode='gundam-lite'] .gundam-dashboard-status b {
+  [data-ui-mode='gundam'] .gundam-dashboard-status b {
     color: rgb(74 222 128);
     font-size: 0.9rem;
   }
 
-  [data-ui-mode='gundam'] .dashboard-stat-grid .card,
-  [data-ui-mode='gundam-lite'] .dashboard-stat-grid .card {
+  [data-ui-mode='gundam'] .dashboard-stat-grid .card {
     min-height: 112px;
   }
 
   [data-ui-mode='gundam'] .dashboard-stat-grid .card {
     background:
-      linear-gradient(135deg, rgb(255 255 255 / 0.92), rgb(226 232 240 / 0.88)),
+      linear-gradient(135deg, rgb(15 23 42 / 0.94), rgb(30 41 59 / 0.86)),
       url('/assets/gundam/armor-plate.webp') center/cover no-repeat;
-    background-blend-mode: normal, soft-light;
+    background-blend-mode: normal, multiply;
     border-color: rgb(148 163 184 / 0.72);
     box-shadow:
       0 18px 34px rgb(15 23 42 / 0.14),
@@ -1777,15 +1248,7 @@
       inset 0 -4px 0 rgb(245 183 37 / 0.72);
   }
 
-  [data-ui-mode='gundam'].dark .dashboard-stat-grid .card {
-    background:
-      linear-gradient(135deg, rgb(15 23 42 / 0.94), rgb(30 41 59 / 0.86)),
-      url('/assets/gundam/armor-plate.webp') center/cover no-repeat;
-    background-blend-mode: normal, multiply;
-  }
-
-  [data-ui-mode='gundam'] .dashboard-stat-grid .card > div::before,
-  [data-ui-mode='gundam-lite'] .dashboard-stat-grid .card > div::before {
+  [data-ui-mode='gundam'] .dashboard-stat-grid .card > div::before {
     position: absolute;
     right: 0.7rem;
     top: 0.75rem;
@@ -1800,20 +1263,13 @@
   [data-ui-mode='gundam'] .dashboard-stat-grid .card:nth-child(3) > div::before { content: 'BAY-03'; }
   [data-ui-mode='gundam'] .dashboard-stat-grid .card:nth-child(4) > div::before { content: 'BAY-04'; }
 
-  [data-ui-mode='gundam'] .dashboard-stat-grid .card > div > div:first-child,
-  [data-ui-mode='gundam-lite'] .dashboard-stat-grid .card > div > div:first-child {
+  [data-ui-mode='gundam'] .dashboard-stat-grid .card > div > div:first-child {
     border-radius: 0;
     border: 1px solid rgb(148 163 184 / 0.58);
     background:
       linear-gradient(135deg, rgb(245 183 37 / 0.18), transparent 48%),
-      rgb(15 23 42 / 0.06);
-    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
-  }
-
-  [data-ui-mode='gundam'].dark .dashboard-stat-grid .card > div > div:first-child {
-    background:
-      linear-gradient(135deg, rgb(245 183 37 / 0.22), transparent 48%),
       rgb(15 23 42 / 0.86);
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
   }
 
   [data-ui-mode='gundam'] .dashboard-chart-grid .card,
@@ -2223,8 +1679,7 @@
       animation: none;
     }
 
-    [data-ui-mode='gundam'] *,
-    [data-ui-mode='gundam-lite'] * {
+    [data-ui-mode='gundam'] * {
       transition-duration: 0.01ms !important;
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;

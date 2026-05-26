@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" fill="none">
+  <defs>
+    <linearGradient id="line" x1="120" y1="40" x2="600" y2="330" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E2E8F0" stop-opacity=".9"/>
+      <stop offset=".48" stop-color="#4FC3F7" stop-opacity=".82"/>
+      <stop offset="1" stop-color="#F5B725" stop-opacity=".72"/>
+    </linearGradient>
+    <linearGradient id="plate" x1="132" y1="62" x2="540" y2="310" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E2E8F0" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#1E3A8A" stop-opacity=".08"/>
+    </linearGradient>
+  </defs>
+  <path d="M360 38 431 75 454 142 535 178 463 218 438 297H282L257 218 185 178 266 142 289 75 360 38Z" fill="url(#plate)" stroke="url(#line)" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M302 112h116l-20 70-38 25-38-25-20-70Z" stroke="url(#line)" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M286 215h148l-24 62-49 30-51-30-24-62Z" stroke="url(#line)" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M320 79 236 39M400 79l84-40M266 142l-115 50M454 142l115 50M282 294l-58 49M438 294l58 49" stroke="url(#line)" stroke-width="4" stroke-linecap="square"/>
+  <path d="M333 142h54M326 238h68M360 207v94" stroke="#F5B725" stroke-width="4" stroke-linecap="square"/>
+  <path d="M96 82h94M530 82h94M70 268h116M535 268h116" stroke="#E2E8F0" stroke-opacity=".26" stroke-width="3"/>
+  <path d="M118 82l-28 28v42M602 82l28 28v42M92 268l-28-28v-42M628 268l28-28v-42" stroke="#F5B725" stroke-opacity=".45" stroke-width="4"/>
+  <path d="M28 30h160M532 30h160M28 330h160M532 330h160" stroke="#4FC3F7" stroke-opacity=".22" stroke-width="2"/>
+</svg>
