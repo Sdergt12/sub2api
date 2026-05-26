@@ -97,6 +97,11 @@ export default defineConfig(({ mode }) => {
             }
 
             // 其他小型第三方库合并
+            // 支付 SDK 只能在支付路由按需加载，避免登录页加载外部脚本并触发 CSP 噪声。
+            if (id.includes('/@stripe/stripe-js/') || id.includes('/@airwallex/')) {
+              return 'vendor-payment'
+            }
+
             return 'vendor-misc'
           }
 

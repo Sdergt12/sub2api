@@ -14,33 +14,26 @@
       <div class="gundam-boot-frame">
         <div class="gundam-boot-corners"></div>
         <div class="gundam-boot-rails" aria-hidden="true"></div>
-        <div class="gundam-boot-tag" aria-hidden="true">HGR-07 / MAINTENANCE</div>
+        <div class="gundam-boot-tag" aria-hidden="true">HGR-13 / MAINTENANCE DECK</div>
         <div class="gundam-boot-unit" aria-hidden="true">
-          <svg viewBox="0 0 260 220" class="gundam-boot-unit-svg">
-            <path d="M130 16l42 24 13 46 34 20-28 19-10 54-30 18h-42l-30-18-10-54-28-19 34-20 13-46z" />
-            <path d="M95 61h70l-10 40-25 16-25-16z" />
-            <path d="M85 130h90l-13 41-31 18-33-18z" />
-            <path d="M73 92l-42 20m156-20l42 20M92 40l-40-18m116 18l40-18M104 190l-21 22m73-22l21 22" />
-            <path d="M113 74h34M111 139h38M128 118v62" />
-          </svg>
           <div class="gundam-boot-reticle"></div>
           <div class="gundam-boot-unit-scan"></div>
         </div>
         <div class="gundam-boot-copy">
-          <p class="gundam-boot-kicker">MOBILE SUIT MAINTENANCE OS</p>
-          <h2>HANGAR BOOT</h2>
+          <p class="gundam-boot-kicker">MOBILE SUIT MAINTENANCE TERMINAL</p>
+          <h2>HANGAR OS</h2>
           <div class="gundam-boot-metrics">
             <div class="gundam-boot-status">
-              <span>ARMOR LOCK</span>
+              <span>FRAME LOCK</span>
               <b>SEALED</b>
             </div>
             <div class="gundam-boot-status">
               <span>POWER BUS</span>
-              <b>GREEN</b>
+              <b>STABLE</b>
             </div>
             <div class="gundam-boot-status">
               <span>RISK CORE</span>
-              <b>ARMED</b>
+              <b>GUARD</b>
             </div>
             <div class="gundam-boot-status">
               <span>DATA LINK</span>

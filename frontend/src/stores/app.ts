@@ -19,7 +19,7 @@ export const useAppStore = defineStore('app', () => {
   const uiModeStorageKey = 'sub2api_ui_mode'
   const gundamImageStorageKey = 'sub2api_gundam_image_url'
   const gundamBootDurationStorageKey = 'sub2api_gundam_boot_duration_ms'
-  const defaultGundamBootDurationMs = 4200
+  const defaultGundamBootDurationMs = 5600
 
   // ==================== State ====================
 
@@ -64,7 +64,7 @@ export const useAppStore = defineStore('app', () => {
   // ==================== Actions ====================
 
   function normalizeUIMode(value: unknown): UIMode {
-    // 旧版本存在 gundam-lite；这里迁移到强 Gundam 模式，避免刷新后进入不可达状态。
+    // 旧版本存在 gundam-lite；统一迁移到强 Gundam 模式，避免缓存值进入不可达状态。
     if (value === 'gundam' || value === 'gundam-lite') return 'gundam'
     return 'official'
   }
@@ -420,6 +420,8 @@ export const useAppStore = defineStore('app', () => {
         home_content: '',
         hide_ccs_import_button: false,
         payment_enabled: false,
+        purchase_subscription_enabled: false,
+        purchase_subscription_url: '',
         table_default_page_size: 20,
         table_page_size_options: [10, 20, 50, 100],
         custom_menu_items: [],

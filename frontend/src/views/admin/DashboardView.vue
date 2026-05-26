@@ -9,14 +9,16 @@
       <template v-else-if="stats">
         <div class="gundam-dashboard-banner" aria-hidden="true">
           <div>
-            <span class="gundam-dashboard-kicker">HANGAR CONTROL TERMINAL</span>
-            <strong>RX-78 HANGAR OS / ADMIN CORE</strong>
-            <span class="gundam-dashboard-subline">FRAME DIAGNOSTICS / TOKEN RISK / ACCOUNT RACK</span>
+            <span class="gundam-dashboard-kicker">MOBILE SUIT MAINTENANCE TERMINAL</span>
+            <strong>HANGAR COMMAND / CONTROL CORE</strong>
+            <span class="gundam-dashboard-subline">ACCOUNT RACK / TOKEN RISK / SERVICE TELEMETRY</span>
           </div>
-          <div class="gundam-dashboard-unit" aria-hidden="true"></div>
+          <div class="gundam-dashboard-unit" aria-hidden="true">
+            <span class="gundam-dashboard-scanline"></span>
+          </div>
           <div class="gundam-dashboard-status">
-            <span>FRAME LINK</span>
-            <b>ONLINE</b>
+            <span>MAINTENANCE BUS</span>
+            <b>LOCKED</b>
           </div>
         </div>
 
@@ -406,8 +408,8 @@ const isDarkMode = computed(() => {
 
 // Chart colors
 const chartColors = computed(() => ({
-  text: isDarkMode.value ? '#e5e7eb' : '#374151',
-  grid: isDarkMode.value ? '#374151' : '#e5e7eb'
+  text: appStore.uiMode === 'gundam' ? '#d7dee4' : isDarkMode.value ? '#e5e7eb' : '#374151',
+  grid: appStore.uiMode === 'gundam' ? 'rgba(83, 142, 151, 0.18)' : isDarkMode.value ? '#374151' : '#e5e7eb'
 }))
 
 // Line chart options (for user trend chart)
@@ -503,20 +505,36 @@ const userTrendChartData = computed(() => {
   })
 
   const sortedDates = Array.from(allDates).sort()
-  const colors = [
-    '#3b82f6',
-    '#10b981',
-    '#f59e0b',
-    '#ef4444',
-    '#8b5cf6',
-    '#ec4899',
-    '#14b8a6',
-    '#f97316',
-    '#6366f1',
-    '#84cc16',
-    '#06b6d4',
-    '#a855f7'
-  ]
+  const colors =
+    appStore.uiMode === 'gundam'
+      ? [
+          '#40969a',
+          '#86632d',
+          '#52606b',
+          '#70452f',
+          '#2f5574',
+          '#7e8c92',
+          '#365d60',
+          '#6f5b37',
+          '#4d6576',
+          '#5f7377',
+          '#9ba5aa',
+          '#7a4b44'
+        ]
+      : [
+          '#3b82f6',
+          '#10b981',
+          '#f59e0b',
+          '#ef4444',
+          '#8b5cf6',
+          '#ec4899',
+          '#14b8a6',
+          '#f97316',
+          '#6366f1',
+          '#84cc16',
+          '#06b6d4',
+          '#a855f7'
+        ]
 
   const datasets = Array.from(userGroups.values()).map((group, idx) => ({
     label: group.name,
