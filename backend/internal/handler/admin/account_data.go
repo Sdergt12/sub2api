@@ -10,6 +10,7 @@ import (
 
 	"log/slog"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -42,6 +43,9 @@ type DataProxy struct {
 	Status   string `json:"status"`
 }
 
+// DataAccount 是管理员显式备份导出使用的账号结构，故意不走 dto.Account 的脱敏路径，
+// Credentials 原文返回。这是"管理员备份"这一显式行为的一部分；如未来需要导出脱敏版本，
+// 应新增独立结构而非修改这里。
 type DataAccount struct {
 	Name               string         `json:"name"`
 	Notes              *string        `json:"notes,omitempty"`
@@ -55,6 +59,7 @@ type DataAccount struct {
 	RateMultiplier     *float64       `json:"rate_multiplier,omitempty"`
 	ExpiresAt          *int64         `json:"expires_at,omitempty"`
 	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired,omitempty"`
+	GroupIDs           []int64        `json:"group_ids,omitempty"`
 }
 
 type DataImportRequest struct {
@@ -159,6 +164,7 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 			RateMultiplier:     acc.RateMultiplier,
 			ExpiresAt:          expiresAt,
 			AutoPauseOnExpired: &acc.AutoPauseOnExpired,
+			GroupIDs:           normalizeDataGroupIDs(acc.GroupIDs),
 		})
 	}
 
@@ -311,7 +317,7 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			Concurrency:          item.Concurrency,
 			Priority:             item.Priority,
 			RateMultiplier:       item.RateMultiplier,
-			GroupIDs:             nil,
+			GroupIDs:             normalizeDataGroupIDs(item.GroupIDs),
 			ExpiresAt:            item.ExpiresAt,
 			AutoPauseOnExpired:   item.AutoPauseOnExpired,
 			SkipDefaultGroupBind: skipDefaultGroupBind,
@@ -359,7 +365,7 @@ func (h *AccountHandler) listAllProxies(ctx context.Context) ([]service.Proxy, e
 	pageSize := dataPageCap
 	var out []service.Proxy
 	for {
-		items, total, err := h.adminService.ListProxies(ctx, page, pageSize, "", "", "")
+		items, total, err := h.adminService.ListProxies(ctx, page, pageSize, "", "", "", "created_at", "desc")
 		if err != nil {
 			return nil, err
 		}
@@ -372,12 +378,12 @@ func (h *AccountHandler) listAllProxies(ctx context.Context) ([]service.Proxy, e
 	return out, nil
 }
 
-func (h *AccountHandler) listAccountsFiltered(ctx context.Context, platform, accountType, status, search string) ([]service.Account, error) {
+func (h *AccountHandler) listAccountsFiltered(ctx context.Context, platform, accountType, status, search string, groupID int64, privacyMode, sortBy, sortOrder string) ([]service.Account, error) {
 	page := 1
 	pageSize := dataPageCap
 	var out []service.Account
 	for {
-		items, total, err := h.adminService.ListAccounts(ctx, page, pageSize, platform, accountType, status, search, 0, "")
+		items, total, err := h.adminService.ListAccounts(ctx, page, pageSize, platform, accountType, status, search, groupID, privacyMode, sortBy, sortOrder)
 		if err != nil {
 			return nil, err
 		}
@@ -409,11 +415,28 @@ func (h *AccountHandler) resolveExportAccounts(ctx context.Context, ids []int64,
 	platform := c.Query("platform")
 	accountType := c.Query("type")
 	status := c.Query("status")
+	privacyMode := strings.TrimSpace(c.Query("privacy_mode"))
 	search := strings.TrimSpace(c.Query("search"))
+	sortBy := c.DefaultQuery("sort_by", "name")
+	sortOrder := c.DefaultQuery("sort_order", "asc")
 	if len(search) > 100 {
 		search = search[:100]
 	}
-	return h.listAccountsFiltered(ctx, platform, accountType, status, search)
+
+	groupID := int64(0)
+	if groupIDStr := c.Query("group"); groupIDStr != "" {
+		if groupIDStr == accountListGroupUngroupedQueryValue {
+			groupID = service.AccountListGroupUngrouped
+		} else {
+			parsedGroupID, parseErr := strconv.ParseInt(groupIDStr, 10, 64)
+			if parseErr != nil || parsedGroupID <= 0 {
+				return nil, infraerrors.BadRequest("INVALID_GROUP_FILTER", "invalid group filter")
+			}
+			groupID = parsedGroupID
+		}
+	}
+
+	return h.listAccountsFiltered(ctx, platform, accountType, status, search, groupID, privacyMode, sortBy, sortOrder)
 }
 
 func (h *AccountHandler) resolveExportProxies(ctx context.Context, accounts []service.Account) ([]service.Proxy, error) {
@@ -555,7 +578,31 @@ func validateDataAccount(item DataAccount) error {
 	if item.Priority < 0 {
 		return errors.New("priority must be >= 0")
 	}
+	for _, groupID := range item.GroupIDs {
+		if groupID <= 0 {
+			return errors.New("group_ids must contain positive ids")
+		}
+	}
 	return nil
+}
+
+func normalizeDataGroupIDs(groupIDs []int64) []int64 {
+	if len(groupIDs) == 0 {
+		return nil
+	}
+	seen := make(map[int64]struct{}, len(groupIDs))
+	normalized := make([]int64, 0, len(groupIDs))
+	for _, groupID := range groupIDs {
+		if groupID <= 0 {
+			continue
+		}
+		if _, ok := seen[groupID]; ok {
+			continue
+		}
+		seen[groupID] = struct{}{}
+		normalized = append(normalized, groupID)
+	}
+	return normalized
 }
 
 func defaultProxyName(name string) string {
