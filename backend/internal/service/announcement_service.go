@@ -43,6 +43,14 @@ type CreateAnnouncementInput struct {
 	ActorID    *int64 // 管理员用户ID
 }
 
+type CreateDirectAnnouncementInput struct {
+	TargetUserID int64
+	Title        string
+	Content      string
+	NotifyMode   string
+	ActorID      *int64 // 管理员用户ID
+}
+
 type UpdateAnnouncementInput struct {
 	Title      *string
 	Content    *string
@@ -70,16 +78,16 @@ type AnnouncementUserReadStatus struct {
 
 func (s *AnnouncementService) Create(ctx context.Context, input *CreateAnnouncementInput) (*Announcement, error) {
 	if input == nil {
-		return nil, fmt.Errorf("create announcement: nil input")
+		return nil, ErrAnnouncementNilInput
 	}
 
 	title := strings.TrimSpace(input.Title)
 	content := strings.TrimSpace(input.Content)
 	if title == "" || len(title) > 200 {
-		return nil, fmt.Errorf("create announcement: invalid title")
+		return nil, ErrAnnouncementInvalidTitle
 	}
 	if content == "" {
-		return nil, fmt.Errorf("create announcement: content is required")
+		return nil, ErrAnnouncementContentRequired
 	}
 
 	status := strings.TrimSpace(input.Status)
@@ -87,7 +95,7 @@ func (s *AnnouncementService) Create(ctx context.Context, input *CreateAnnouncem
 		status = AnnouncementStatusDraft
 	}
 	if !isValidAnnouncementStatus(status) {
-		return nil, fmt.Errorf("create announcement: invalid status")
+		return nil, ErrAnnouncementInvalidStatus
 	}
 
 	targeting, err := domain.AnnouncementTargeting(input.Targeting).NormalizeAndValidate()
@@ -100,12 +108,12 @@ func (s *AnnouncementService) Create(ctx context.Context, input *CreateAnnouncem
 		notifyMode = AnnouncementNotifyModeSilent
 	}
 	if !isValidAnnouncementNotifyMode(notifyMode) {
-		return nil, fmt.Errorf("create announcement: invalid notify_mode")
+		return nil, ErrAnnouncementInvalidNotifyMode
 	}
 
 	if input.StartsAt != nil && input.EndsAt != nil {
 		if !input.StartsAt.Before(*input.EndsAt) {
-			return nil, fmt.Errorf("create announcement: starts_at must be before ends_at")
+			return nil, ErrAnnouncementInvalidSchedule
 		}
 	}
 
@@ -129,9 +137,43 @@ func (s *AnnouncementService) Create(ctx context.Context, input *CreateAnnouncem
 	return a, nil
 }
 
+func (s *AnnouncementService) CreateDirect(ctx context.Context, input *CreateDirectAnnouncementInput) (*Announcement, error) {
+	if input == nil {
+		return nil, fmt.Errorf("create direct announcement: nil input")
+	}
+	if input.TargetUserID <= 0 {
+		return nil, fmt.Errorf("create direct announcement: invalid target user")
+	}
+	if _, err := s.userRepo.GetByID(ctx, input.TargetUserID); err != nil {
+		return nil, fmt.Errorf("create direct announcement: get target user: %w", err)
+	}
+
+	// 复用公告中心：通过 user targeting 精确命中单个用户，用户侧铃铛、弹窗和已读状态无需新链路。
+	return s.Create(ctx, &CreateAnnouncementInput{
+		Title:      input.Title,
+		Content:    input.Content,
+		Status:     AnnouncementStatusActive,
+		NotifyMode: input.NotifyMode,
+		Targeting: AnnouncementTargeting{
+			AnyOf: []AnnouncementConditionGroup{
+				{
+					AllOf: []AnnouncementCondition{
+						{
+							Type:     AnnouncementConditionTypeUser,
+							Operator: AnnouncementOperatorIn,
+							UserIDs:  []int64{input.TargetUserID},
+						},
+					},
+				},
+			},
+		},
+		ActorID: input.ActorID,
+	})
+}
+
 func (s *AnnouncementService) Update(ctx context.Context, id int64, input *UpdateAnnouncementInput) (*Announcement, error) {
 	if input == nil {
-		return nil, fmt.Errorf("update announcement: nil input")
+		return nil, ErrAnnouncementNilInput
 	}
 
 	a, err := s.announcementRepo.GetByID(ctx, id)
@@ -142,21 +184,21 @@ func (s *AnnouncementService) Update(ctx context.Context, id int64, input *Updat
 	if input.Title != nil {
 		title := strings.TrimSpace(*input.Title)
 		if title == "" || len(title) > 200 {
-			return nil, fmt.Errorf("update announcement: invalid title")
+			return nil, ErrAnnouncementInvalidTitle
 		}
 		a.Title = title
 	}
 	if input.Content != nil {
 		content := strings.TrimSpace(*input.Content)
 		if content == "" {
-			return nil, fmt.Errorf("update announcement: content is required")
+			return nil, ErrAnnouncementContentRequired
 		}
 		a.Content = content
 	}
 	if input.Status != nil {
 		status := strings.TrimSpace(*input.Status)
 		if !isValidAnnouncementStatus(status) {
-			return nil, fmt.Errorf("update announcement: invalid status")
+			return nil, ErrAnnouncementInvalidStatus
 		}
 		a.Status = status
 	}
@@ -164,7 +206,7 @@ func (s *AnnouncementService) Update(ctx context.Context, id int64, input *Updat
 	if input.NotifyMode != nil {
 		notifyMode := strings.TrimSpace(*input.NotifyMode)
 		if !isValidAnnouncementNotifyMode(notifyMode) {
-			return nil, fmt.Errorf("update announcement: invalid notify_mode")
+			return nil, ErrAnnouncementInvalidNotifyMode
 		}
 		a.NotifyMode = notifyMode
 	}
@@ -186,7 +228,7 @@ func (s *AnnouncementService) Update(ctx context.Context, id int64, input *Updat
 
 	if a.StartsAt != nil && a.EndsAt != nil {
 		if !a.StartsAt.Before(*a.EndsAt) {
-			return nil, fmt.Errorf("update announcement: starts_at must be before ends_at")
+			return nil, ErrAnnouncementInvalidSchedule
 		}
 	}
 
@@ -243,7 +285,7 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID int64, unr
 		if !a.IsActiveAt(now) {
 			continue
 		}
-		if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+		if !a.Targeting.MatchesUser(user.ID, user.Balance, activeGroupIDs) {
 			continue
 		}
 		visible = append(visible, a)
@@ -315,7 +357,7 @@ func (s *AnnouncementService) MarkRead(ctx context.Context, userID, announcement
 		activeGroupIDs[activeSubs[i].GroupID] = struct{}{}
 	}
 
-	if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+	if !a.Targeting.MatchesUser(user.ID, user.Balance, activeGroupIDs) {
 		return ErrAnnouncementNotFound
 	}
 
@@ -379,7 +421,7 @@ func (s *AnnouncementService) ListUserReadStatus(
 			Email:    u.Email,
 			Username: u.Username,
 			Balance:  u.Balance,
-			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(u.Balance, activeGroupIDs),
+			Eligible: domain.AnnouncementTargeting(ann.Targeting).MatchesUser(u.ID, u.Balance, activeGroupIDs),
 			ReadAt:   ptr,
 		})
 	}
