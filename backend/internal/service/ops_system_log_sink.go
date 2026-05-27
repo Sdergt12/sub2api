@@ -26,7 +26,8 @@ type OpsSystemLogSinkHealth struct {
 }
 
 type OpsSystemLogSink struct {
-	opsRepo OpsRepository
+	opsRepo          OpsRepository
+	tokenRiskService *TokenRiskService
 
 	queue chan *logger.LogEvent
 
@@ -43,6 +44,13 @@ type OpsSystemLogSink struct {
 	totalDelayNs uint64
 
 	lastError atomic.Value
+}
+
+func (s *OpsSystemLogSink) SetTokenRiskService(tokenRiskService *TokenRiskService) {
+	if s == nil {
+		return
+	}
+	s.tokenRiskService = tokenRiskService
 }
 
 func NewOpsSystemLogSink(opsRepo OpsRepository) *OpsSystemLogSink {
@@ -244,7 +252,39 @@ func (s *OpsSystemLogSink) flushBatch(baseCtx context.Context, batch []*logger.L
 	if err != nil {
 		return 0, err
 	}
+	s.ingestTokenRiskBestEffort(ctx, inputs)
 	return int(inserted), nil
+}
+
+func (s *OpsSystemLogSink) ingestTokenRiskBestEffort(ctx context.Context, inputs []*OpsInsertSystemLogInput) {
+	if s == nil || s.tokenRiskService == nil || len(inputs) == 0 {
+		return
+	}
+	for _, input := range inputs {
+		if input == nil || strings.TrimSpace(input.Component) != "audit.token" {
+			continue
+		}
+		extra := map[string]any{}
+		if err := json.Unmarshal([]byte(input.ExtraJSON), &extra); err != nil {
+			continue
+		}
+		log := &OpsSystemLog{
+			CreatedAt:       input.CreatedAt,
+			Level:           input.Level,
+			Component:       input.Component,
+			Message:         input.Message,
+			RequestID:       input.RequestID,
+			ClientRequestID: input.ClientRequestID,
+			UserID:          input.UserID,
+			AccountID:       input.AccountID,
+			Platform:        input.Platform,
+			Model:           input.Model,
+			Extra:           extra,
+		}
+		if _, err := s.tokenRiskService.IngestFromOpsLog(ctx, log); err != nil {
+			s.lastError.Store("token risk ingest failed: " + err.Error())
+		}
+	}
 }
 
 func (s *OpsSystemLogSink) Health() OpsSystemLogSinkHealth {
