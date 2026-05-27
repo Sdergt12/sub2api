@@ -32,6 +32,11 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		queryKey := strings.TrimSpace(c.Query("key"))
 		queryApiKey := strings.TrimSpace(c.Query("api_key"))
 		if queryKey != "" || queryApiKey != "" {
+			queryToken := queryKey
+			if queryToken == "" {
+				queryToken = queryApiKey
+			}
+			writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: queryToken, Result: "denied", RiskLevel: "high", Rule: "api_key_in_query", FailureReason: "api_key_in_query_deprecated", StatusCode: 400})
 			AbortWithError(c, 400, "api_key_in_query_deprecated", "API key in query parameter is deprecated. Please use Authorization header instead.")
 			return
 		}
@@ -60,6 +65,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 
 		// 如果所有header都没有API key
 		if apiKeyString == "" {
+			writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Result: "denied", RiskLevel: "medium", Rule: "missing_api_key", FailureReason: "missing_api_key", StatusCode: 401})
 			AbortWithError(c, 401, "API_KEY_REQUIRED", "API key is required in Authorization header (Bearer scheme), x-api-key header, or x-goog-api-key header")
 			return
 		}
@@ -69,9 +75,11 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		apiKey, err := apiKeyService.GetByKey(c.Request.Context(), apiKeyString)
 		if err != nil {
 			if errors.Is(err, service.ErrAPIKeyNotFound) {
+				writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, Result: "denied", RiskLevel: "high", Rule: "invalid_api_key", FailureReason: "invalid_api_key", StatusCode: 401})
 				AbortWithError(c, 401, "INVALID_API_KEY", "Invalid API key")
 				return
 			}
+			writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, Result: "denied", RiskLevel: "high", Rule: "api_key_lookup_failed", FailureReason: "api_key_lookup_failed", StatusCode: 500})
 			AbortWithError(c, 500, "INTERNAL_ERROR", "Failed to validate API key")
 			return
 		}
@@ -82,6 +90,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		if !apiKey.IsActive() &&
 			apiKey.Status != service.StatusAPIKeyExpired &&
 			apiKey.Status != service.StatusAPIKeyQuotaExhausted {
+			writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, UserID: apiKey.UserID, APIKeyID: apiKey.ID, Result: "denied", RiskLevel: "high", Rule: "api_key_disabled", FailureReason: "api_key_disabled", StatusCode: 401})
 			AbortWithError(c, 401, "API_KEY_DISABLED", "API key is disabled")
 			return
 		}
@@ -90,8 +99,13 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// 注意：错误信息故意模糊，避免暴露具体的 IP 限制机制
 		if len(apiKey.IPWhitelist) > 0 || len(apiKey.IPBlacklist) > 0 {
 			clientIP := ip.GetTrustedClientIP(c)
+			if cfg.TrustForwardedIPForAPIKeyACL() {
+				clientIP = ip.GetClientIP(c)
+			}
 			allowed, _ := ip.CheckIPRestrictionWithCompiledRules(clientIP, apiKey.CompiledIPWhitelist, apiKey.CompiledIPBlacklist)
 			if !allowed {
+				service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonIPRestriction)
+				writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, UserID: apiKey.UserID, APIKeyID: apiKey.ID, Result: "denied", RiskLevel: "critical", Rule: "api_key_ip_restricted", FailureReason: "ip_restricted", StatusCode: 403})
 				AbortWithError(c, 403, "ACCESS_DENIED", "Access denied")
 				return
 			}
@@ -99,13 +113,18 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 
 		// 检查关联的用户
 		if apiKey.User == nil {
+			writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, UserID: apiKey.UserID, APIKeyID: apiKey.ID, Result: "denied", RiskLevel: "high", Rule: "api_key_user_not_found", FailureReason: "user_not_found", StatusCode: 401})
 			AbortWithError(c, 401, "USER_NOT_FOUND", "User associated with API key not found")
 			return
 		}
 
 		// 检查用户状态
 		if !apiKey.User.IsActive() {
+			writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, UserID: apiKey.User.ID, APIKeyID: apiKey.ID, Result: "denied", RiskLevel: "high", Rule: "api_key_user_inactive", FailureReason: "user_inactive", StatusCode: 401})
 			AbortWithError(c, 401, "USER_INACTIVE", "User account is not active")
+			return
+		}
+		if abortIfAPIKeyGroupUnavailable(c, apiKey) {
 			return
 		}
 
@@ -155,19 +174,23 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			// Key 状态检查
 			switch apiKey.Status {
 			case service.StatusAPIKeyQuotaExhausted:
+				writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, UserID: apiKey.User.ID, APIKeyID: apiKey.ID, Result: "denied", RiskLevel: "medium", Rule: "api_key_quota_exhausted", FailureReason: "quota_exhausted", StatusCode: 429})
 				AbortWithError(c, 429, "API_KEY_QUOTA_EXHAUSTED", "API key 额度已用完")
 				return
 			case service.StatusAPIKeyExpired:
+				writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, UserID: apiKey.User.ID, APIKeyID: apiKey.ID, Result: "denied", RiskLevel: "medium", Rule: "api_key_expired", FailureReason: "api_key_expired", StatusCode: 403})
 				AbortWithError(c, 403, "API_KEY_EXPIRED", "API key 已过期")
 				return
 			}
 
 			// 运行时过期/配额检查（即使状态是 active，也要检查时间和用量）
 			if apiKey.IsExpired() {
+				writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, UserID: apiKey.User.ID, APIKeyID: apiKey.ID, Result: "denied", RiskLevel: "medium", Rule: "api_key_runtime_expired", FailureReason: "api_key_expired", StatusCode: 403})
 				AbortWithError(c, 403, "API_KEY_EXPIRED", "API key 已过期")
 				return
 			}
 			if apiKey.IsQuotaExhausted() {
+				writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, UserID: apiKey.User.ID, APIKeyID: apiKey.ID, Result: "denied", RiskLevel: "medium", Rule: "api_key_runtime_quota_exhausted", FailureReason: "quota_exhausted", StatusCode: 429})
 				AbortWithError(c, 429, "API_KEY_QUOTA_EXHAUSTED", "API key 额度已用完")
 				return
 			}
@@ -184,6 +207,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 						code = "USAGE_LIMIT_EXCEEDED"
 						status = 429
 					}
+					writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, UserID: apiKey.User.ID, APIKeyID: apiKey.ID, Result: "denied", RiskLevel: "medium", Rule: "subscription_limit_or_invalid", FailureReason: code, StatusCode: status})
 					AbortWithError(c, status, code, validateErr.Error())
 					return
 				}
@@ -196,6 +220,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			} else {
 				// 非订阅模式 或 订阅模式但 subscriptionService 未注入：回退到余额检查
 				if apiKey.User.Balance <= 0 {
+					writeTokenAudit(c, tokenAuditEvent{TokenType: "api_key", Token: apiKeyString, UserID: apiKey.User.ID, APIKeyID: apiKey.ID, Result: "denied", RiskLevel: "medium", Rule: "insufficient_balance", FailureReason: "insufficient_balance", StatusCode: 403})
 					AbortWithError(c, 403, "INSUFFICIENT_BALANCE", "Insufficient account balance")
 					return
 				}
@@ -249,4 +274,27 @@ func setGroupContext(c *gin.Context, group *service.Group) {
 	}
 	ctx := context.WithValue(c.Request.Context(), ctxkey.Group, group)
 	c.Request = c.Request.WithContext(ctx)
+}
+
+func abortIfAPIKeyGroupUnavailable(c *gin.Context, apiKey *service.APIKey) bool {
+	code, message, ok := validateAPIKeyGroupAvailable(apiKey)
+	if ok {
+		return false
+	}
+	AbortWithError(c, 403, code, message)
+	return true
+}
+
+func validateAPIKeyGroupAvailable(apiKey *service.APIKey) (string, string, bool) {
+	if apiKey == nil || apiKey.GroupID == nil {
+		return "", "", true
+	}
+	group := apiKey.Group
+	if group == nil || strings.EqualFold(group.Status, "deleted") {
+		return "GROUP_DELETED", "API Key 所属分组已删除", false
+	}
+	if !group.IsActive() {
+		return "GROUP_DISABLED", "API Key 所属分组已停用", false
+	}
+	return "", "", true
 }
