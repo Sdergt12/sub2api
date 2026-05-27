@@ -146,6 +146,8 @@ type UsageLog struct {
 	RateMultiplier    float64
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）
 	AccountRateMultiplier *float64
+	// AccountStatsCost 账号统计定价预计算费用（nil = 使用默认公式 total_cost × account_rate_multiplier）
+	AccountStatsCost *float64
 
 	BillingType  int8
 	RequestType  RequestType
@@ -160,9 +162,13 @@ type UsageLog struct {
 	CacheTTLOverridden bool
 
 	// 图片生成字段
-	ImageCount int
-	ImageSize  *string
-	MediaType  *string
+	ImageCount         int
+	ImageSize          *string
+	ImageInputSize     *string
+	ImageOutputSize    *string
+	ImageSizeSource    *string
+	ImageSizeBreakdown map[string]int
+	MediaType          *string
 
 	CreatedAt time.Time
 
