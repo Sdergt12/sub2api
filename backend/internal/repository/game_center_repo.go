@@ -110,7 +110,6 @@ LIMIT $` + itoa(len(args)) + `
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	items := make([]service.GameCenterLeaderboardItem, 0)
 	for rows.Next() {
 		var item service.GameCenterLeaderboardItem
@@ -129,7 +128,14 @@ LIMIT $` + itoa(len(args)) + `
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 func (r *gameCenterRepository) GetGameCenterUserStats(ctx context.Context, userID int64, since *time.Time) (*service.GameCenterUserStats, error) {
@@ -150,7 +156,6 @@ WHERE user_id = $1`
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	stats := &service.GameCenterUserStats{
 		UserID:         userID,
 		TodayFreeCount: map[string]int{},
@@ -183,7 +188,14 @@ WHERE user_id = $1`
 		}
 		stats.Remaining[gameKey] = remaining
 	}
-	return stats, rows.Err()
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	return stats, nil
 }
 
 func (r *gameCenterRepository) GetGameCenterUserRank(ctx context.Context, userID int64, filter service.GameCenterLeaderboardFilter) (int, error) {
