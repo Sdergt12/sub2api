@@ -17,6 +17,8 @@ import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
 export const useAppStore = defineStore('app', () => {
   type UIMode = 'official' | 'gundam'
   const uiModeStorageKey = 'sub2api_ui_mode'
+  const themeStorageKey = 'theme'
+  const themeBeforeGundamStorageKey = 'sub2api_theme_before_gundam'
   const gundamImageStorageKey = 'sub2api_gundam_image_url'
   const gundamBootDurationStorageKey = 'sub2api_gundam_boot_duration_ms'
   const defaultGundamBootDurationMs = 5600
@@ -97,9 +99,54 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
+  function resolveCurrentTheme(): 'light' | 'dark' {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(themeStorageKey)
+      if (saved === 'light' || saved === 'dark') return saved
+    }
+    if (typeof document !== 'undefined' && document.documentElement.classList.contains('dark')) {
+      return 'dark'
+    }
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark'
+    }
+    return 'light'
+  }
+
+  function applyTheme(theme: 'light' | 'dark'): void {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', theme === 'dark')
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(themeStorageKey, theme)
+    }
+  }
+
+  function forceDarkThemeForGundam(previousMode: UIMode, nextMode: UIMode): void {
+    if (typeof localStorage === 'undefined' || nextMode !== 'gundam') return
+    if (previousMode !== 'gundam' && !localStorage.getItem(themeBeforeGundamStorageKey)) {
+      localStorage.setItem(themeBeforeGundamStorageKey, resolveCurrentTheme())
+    }
+    // Gundam 是强风格整备终端，必须锁定深色，避免浅色主题破坏视觉与可读性。
+    applyTheme('dark')
+  }
+
+  function restoreThemeAfterGundam(previousMode: UIMode, nextMode: UIMode): void {
+    if (typeof localStorage === 'undefined' || previousMode !== 'gundam' || nextMode === 'gundam') return
+    const previousTheme = localStorage.getItem(themeBeforeGundamStorageKey)
+    localStorage.removeItem(themeBeforeGundamStorageKey)
+    if (previousTheme === 'light' || previousTheme === 'dark') {
+      applyTheme(previousTheme)
+      return
+    }
+    applyTheme(resolveCurrentTheme())
+  }
+
   function setUIMode(mode: UIMode): void {
     const nextMode = normalizeUIMode(mode)
     const previousMode = uiMode.value
+    forceDarkThemeForGundam(previousMode, nextMode)
+    restoreThemeAfterGundam(previousMode, nextMode)
     uiMode.value = nextMode
     if (typeof document !== 'undefined') {
       document.documentElement.dataset.uiMode = nextMode
