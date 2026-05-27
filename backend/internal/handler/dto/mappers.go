@@ -13,16 +13,23 @@ func UserFromServiceShallow(u *service.User) *User {
 		return nil
 	}
 	return &User{
-		ID:            u.ID,
-		Email:         u.Email,
-		Username:      u.Username,
-		Role:          u.Role,
-		Balance:       u.Balance,
-		Concurrency:   u.Concurrency,
-		Status:        u.Status,
-		AllowedGroups: u.AllowedGroups,
-		CreatedAt:     u.CreatedAt,
-		UpdatedAt:     u.UpdatedAt,
+		ID:                         u.ID,
+		Email:                      u.Email,
+		Username:                   u.Username,
+		Role:                       u.Role,
+		Balance:                    u.Balance,
+		Concurrency:                u.Concurrency,
+		Status:                     u.Status,
+		AllowedGroups:              u.AllowedGroups,
+		LastActiveAt:               u.LastActiveAt,
+		CreatedAt:                  u.CreatedAt,
+		UpdatedAt:                  u.UpdatedAt,
+		BalanceNotifyEnabled:       u.BalanceNotifyEnabled,
+		BalanceNotifyThresholdType: u.BalanceNotifyThresholdType,
+		BalanceNotifyThreshold:     u.BalanceNotifyThreshold,
+		BalanceNotifyExtraEmails:   NotifyEmailEntriesFromService(u.BalanceNotifyExtraEmails),
+		TotalRecharged:             u.TotalRecharged,
+		RPMLimit:                   u.RPMLimit,
 	}
 }
 
@@ -61,6 +68,7 @@ func UserFromServiceAdmin(u *service.User) *AdminUser {
 	return &AdminUser{
 		User:       *base,
 		Notes:      u.Notes,
+		LastUsedAt: u.LastUsedAt,
 		GroupRates: u.GroupRates,
 	}
 }
@@ -168,6 +176,9 @@ func groupFromServiceBase(g *service.Group) Group {
 		DailyLimitUSD:                   g.DailyLimitUSD,
 		WeeklyLimitUSD:                  g.WeeklyLimitUSD,
 		MonthlyLimitUSD:                 g.MonthlyLimitUSD,
+		AllowImageGeneration:            g.AllowImageGeneration,
+		ImageRateIndependent:            g.ImageRateIndependent,
+		ImageRateMultiplier:             g.ImageRateMultiplier,
 		ImagePrice1K:                    g.ImagePrice1K,
 		ImagePrice2K:                    g.ImagePrice2K,
 		ImagePrice4K:                    g.ImagePrice4K,
@@ -177,6 +188,7 @@ func groupFromServiceBase(g *service.Group) Group {
 		AllowMessagesDispatch:           g.AllowMessagesDispatch,
 		RequireOAuthOnly:                g.RequireOAuthOnly,
 		RequirePrivacySet:               g.RequirePrivacySet,
+		RPMLimit:                        g.RPMLimit,
 		CreatedAt:                       g.CreatedAt,
 		UpdatedAt:                       g.UpdatedAt,
 	}
@@ -186,13 +198,15 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 	if a == nil {
 		return nil
 	}
+	redactedCreds, credsStatus := RedactCredentials(a.Credentials)
 	out := &Account{
 		ID:                      a.ID,
 		Name:                    a.Name,
 		Notes:                   a.Notes,
 		Platform:                a.Platform,
 		Type:                    a.Type,
-		Credentials:             a.Credentials,
+		Credentials:             redactedCreds,
+		CredentialsStatus:       credsStatus,
 		Extra:                   a.Extra,
 		ProxyID:                 a.ProxyID,
 		Concurrency:             a.Concurrency,
@@ -321,6 +335,26 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 			if v, ok := a.Extra["quota_weekly_reset_at"].(string); ok && v != "" {
 				out.QuotaWeeklyResetAt = &v
 			}
+		}
+
+		// 配额通知配置
+		if enabled := a.GetQuotaNotifyDailyEnabled(); enabled {
+			out.QuotaNotifyDailyEnabled = &enabled
+		}
+		if threshold := a.GetQuotaNotifyDailyThreshold(); threshold > 0 {
+			out.QuotaNotifyDailyThreshold = &threshold
+		}
+		if enabled := a.GetQuotaNotifyWeeklyEnabled(); enabled {
+			out.QuotaNotifyWeeklyEnabled = &enabled
+		}
+		if threshold := a.GetQuotaNotifyWeeklyThreshold(); threshold > 0 {
+			out.QuotaNotifyWeeklyThreshold = &threshold
+		}
+		if enabled := a.GetQuotaNotifyTotalEnabled(); enabled {
+			out.QuotaNotifyTotalEnabled = &enabled
+		}
+		if threshold := a.GetQuotaNotifyTotalThreshold(); threshold > 0 {
+			out.QuotaNotifyTotalThreshold = &threshold
 		}
 	}
 
@@ -499,10 +533,14 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 		UsedBy:       rc.UsedBy,
 		UsedAt:       rc.UsedAt,
 		CreatedAt:    rc.CreatedAt,
+		ExpiresAt:    rc.ExpiresAt,
 		GroupID:      rc.GroupID,
 		ValidityDays: rc.ValidityDays,
 		User:         UserFromServiceShallow(rc.User),
 		Group:        GroupFromServiceShallow(rc.Group),
+	}
+	if rc.IsExpired() {
+		out.Status = service.StatusExpired
 	}
 
 	// For admin_balance/admin_concurrency types, include notes so users can see
@@ -568,6 +606,10 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		FirstTokenMs:          l.FirstTokenMs,
 		ImageCount:            l.ImageCount,
 		ImageSize:             l.ImageSize,
+		ImageInputSize:        l.ImageInputSize,
+		ImageOutputSize:       l.ImageOutputSize,
+		ImageSizeSource:       l.ImageSizeSource,
+		ImageSizeBreakdown:    l.ImageSizeBreakdown,
 		MediaType:             l.MediaType,
 		UserAgent:             l.UserAgent,
 		CacheTTLOverridden:    l.CacheTTLOverridden,
@@ -603,6 +645,7 @@ func UsageLogFromServiceAdmin(l *service.UsageLog) *AdminUsageLog {
 		ModelMappingChain:     l.ModelMappingChain,
 		BillingTier:           l.BillingTier,
 		AccountRateMultiplier: l.AccountRateMultiplier,
+		AccountStatsCost:      l.AccountStatsCost,
 		IPAddress:             l.IPAddress,
 		Account:               AccountSummaryFromService(l.Account),
 	}
