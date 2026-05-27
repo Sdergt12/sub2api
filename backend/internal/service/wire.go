@@ -483,6 +483,7 @@ var ProviderSet = wire.NewSet(
 	ProvideOpsSystemLogSink,
 	NewOpsService,
 	NewTokenRiskService,
+	NewGameCenterService,
 	ProvideOpsMetricsCollector,
 	ProvideOpsAggregationService,
 	ProvideOpsAlertEvaluatorService,

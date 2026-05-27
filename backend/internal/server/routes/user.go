@@ -120,5 +120,13 @@ func RegisterUserRoutes(
 			monitors.GET("", h.ChannelMonitor.List)
 			monitors.GET("/:id/status", h.ChannelMonitor.GetStatus)
 		}
+
+		// 游戏中心排行榜与战绩：认证用户可写自己的战绩，不能替他人提交。
+		gameCenter := authenticated.Group("/game-center")
+		{
+			gameCenter.GET("/leaderboard", h.GameCenter.GetLeaderboard)
+			gameCenter.POST("/plays", h.GameCenter.RecordPlay)
+			gameCenter.GET("/me", h.GameCenter.GetMe)
+		}
 	}
 }

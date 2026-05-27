@@ -755,7 +755,7 @@
       linear-gradient(180deg, rgba(2, 4, 7, 0.18), rgba(2, 4, 7, 0.74)),
       radial-gradient(circle at 18% 14%, rgba(78, 123, 134, 0.12), transparent 24rem),
       radial-gradient(circle at 82% 18%, rgba(151, 113, 45, 0.055), transparent 20rem),
-      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp')),
+      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp?v=26')),
       linear-gradient(135deg, rgb(3 6 10) 0%, rgb(9 14 21) 46%, rgb(1 3 6) 100%);
     background-blend-mode: multiply, screen, screen, normal, normal;
     background-position: center center, center center, center center, center center, center center;
@@ -765,7 +765,7 @@
   [data-ui-mode='gundam'].dark body {
     color: rgb(226 232 240);
     background:
-      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp')),
+      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp?v=26')),
       linear-gradient(180deg, rgba(4, 7, 11, 0.58), rgba(4, 7, 11, 0.9)),
       radial-gradient(circle at 18% 12%, rgba(83, 142, 151, 0.1), transparent 24rem),
       radial-gradient(circle at 82% 12%, rgba(134, 99, 45, 0.07), transparent 20rem),
@@ -804,14 +804,14 @@
   [data-ui-mode='gundam'] .min-h-screen.dark\:bg-dark-950 {
     background:
       linear-gradient(180deg, rgba(5, 8, 13, 0.82), rgba(5, 8, 13, 0.94)),
-      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp')) center/cover fixed no-repeat !important;
+      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp?v=26')) center/cover fixed no-repeat !important;
   }
 
   [data-ui-mode='gundam'] .auth-layout {
     background:
       linear-gradient(180deg, rgba(1, 3, 6, 0.28), rgba(1, 3, 6, 0.78)),
       radial-gradient(circle at 50% 16%, rgba(78, 123, 134, 0.1), transparent 28rem),
-      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp')) center/cover fixed no-repeat,
+      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp?v=26')) center/cover fixed no-repeat,
       linear-gradient(135deg, rgb(1 3 6), rgb(7 11 17) 48%, rgb(1 3 6)) !important;
     color: rgb(var(--gundam-text));
   }
@@ -870,7 +870,7 @@
     border-color: rgb(95 106 110 / 0.72) !important;
     background:
       linear-gradient(180deg, rgba(5, 9, 15, 0.96), rgba(2, 5, 10, 0.99)),
-      url('/assets/gundam/armor-plate.webp') center/cover no-repeat !important;
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat !important;
     background-blend-mode: normal, multiply;
     box-shadow:
       0 32px 90px rgba(0, 0, 0, 0.68),
@@ -994,7 +994,7 @@
     inset: 0;
     border-radius: inherit;
     background:
-      url('/assets/gundam/armor-plate.webp') center/cover no-repeat,
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat,
       linear-gradient(135deg, transparent 0 62%, rgb(var(--gundam-warning) / 0.06) 63% 66%, transparent 67%),
       linear-gradient(315deg, transparent 0 86%, rgb(var(--gundam-alert) / 0.05) 88% 100%);
     background-blend-mode: multiply, normal, normal;
@@ -1286,7 +1286,7 @@
     color: rgb(226 232 240);
     background:
       linear-gradient(90deg, rgb(6 10 16 / 0.94), rgb(12 19 28 / 0.76) 38%, rgb(6 10 16 / 0.86)),
-      url('/assets/gundam/hangar-command.webp') center/cover no-repeat;
+      url('/assets/gundam/hangar-command.webp?v=26') center/cover no-repeat;
     background-blend-mode: normal, normal;
     clip-path: polygon(0 0, calc(100% - 34px) 0, 100% 34px, 100% 100%, 34px 100%, 0 calc(100% - 34px));
     box-shadow:
@@ -1341,7 +1341,7 @@
     border: 1px solid rgb(var(--gundam-accent) / 0.18);
     background:
       radial-gradient(circle at 50% 48%, rgb(var(--gundam-accent) / 0.12), transparent 54%),
-      url('/assets/gundam/hangar-command.webp') center/cover no-repeat;
+      url('/assets/gundam/hangar-command.webp?v=26') center/cover no-repeat;
     background-blend-mode: screen, normal;
     box-shadow:
       inset 0 0 0 1px rgb(255 255 255 / 0.05),
@@ -1407,7 +1407,7 @@
   [data-ui-mode='gundam'] .dashboard-stat-grid .card {
     background:
       linear-gradient(135deg, rgb(7 11 18 / 0.94), rgb(20 29 40 / 0.86)),
-      url('/assets/gundam/armor-plate.webp') center/cover no-repeat;
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat;
     background-blend-mode: normal, soft-light;
     border-color: rgb(100 112 124 / 0.78);
     box-shadow:
@@ -1548,7 +1548,7 @@
   .gundam-boot-bg {
     inset: 0;
     background:
-      var(--sub2api-gundam-image-url, url('/assets/gundam/boot-hangar.webp')) center/cover no-repeat;
+      var(--sub2api-gundam-image-url, url('/assets/gundam/boot-hangar.webp?v=26')) center/cover no-repeat;
     opacity: 0.58;
     filter: saturate(0.78) contrast(1.12) brightness(0.62);
     transform: scale(1.02);
@@ -1559,7 +1559,7 @@
     bottom: 0;
     width: 50vw;
     background:
-      url('/assets/gundam/armor-plate.webp') center/cover no-repeat,
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat,
       linear-gradient(180deg, rgba(184, 190, 194, 0.18), rgba(36, 44, 54, 0.08)),
       linear-gradient(135deg, rgb(var(--gundam-warning) / 0.1), transparent 40%, rgb(var(--gundam-alert) / 0.08));
     background-blend-mode: soft-light, normal, normal;
@@ -1649,7 +1649,7 @@
     border: 1px solid rgba(226, 232, 240, 0.18);
     background:
       linear-gradient(135deg, rgba(5, 9, 15, 0.9), rgba(15, 22, 32, 0.78)),
-      url('/assets/gundam/armor-plate.webp') center/cover no-repeat;
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat;
     background-blend-mode: normal, soft-light;
     clip-path: polygon(0 0, calc(100% - 34px) 0, 100% 34px, 100% 100%, 34px 100%, 0 calc(100% - 34px));
     box-shadow:
@@ -1710,7 +1710,7 @@
     background:
       linear-gradient(180deg, rgb(var(--gundam-warning) / 0.04), transparent 26%),
       radial-gradient(circle at 50% 48%, rgb(var(--gundam-accent) / 0.12), transparent 58%),
-      url('/assets/gundam/boot-hangar.webp') center/cover no-repeat,
+      url('/assets/gundam/boot-hangar.webp?v=26') center/cover no-repeat,
       linear-gradient(135deg, rgba(7, 13, 22, 0.92), rgba(14, 24, 39, 0.7));
     background-blend-mode: screen, screen, normal, normal;
     box-shadow: inset 0 0 48px rgb(0 0 0 / 0.42);
@@ -1911,7 +1911,7 @@
     }
   }
 
-  /* ============ Gundam v24 强化层：暗金属整备舱终端 ============ */
+  /* ============ Gundam v25 强化层：暗金属整备舱终端 ============ */
   [data-ui-mode='gundam'] {
     --gundam-armor: 118 122 116;
     --gundam-armor-soft: 44 50 52;
@@ -1929,7 +1929,7 @@
     background:
       linear-gradient(180deg, rgba(1, 3, 6, 0.44), rgba(1, 3, 6, 0.91)),
       radial-gradient(circle at 50% 8%, rgba(75, 120, 130, 0.12), transparent 34rem),
-      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp')) center/cover fixed no-repeat,
+      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp?v=26')) center/cover fixed no-repeat,
       linear-gradient(135deg, rgb(1 3 6), rgb(8 12 16) 52%, rgb(1 3 6)) !important;
     color: rgb(var(--gundam-text));
   }
@@ -1955,7 +1955,7 @@
   [data-ui-mode='gundam'] .min-h-screen.dark\:bg-dark-950 {
     background:
       linear-gradient(180deg, rgba(1, 3, 6, 0.36), rgba(1, 3, 6, 0.88)),
-      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp')) center/cover fixed no-repeat,
+      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp?v=26')) center/cover fixed no-repeat,
       rgb(1 3 6) !important;
   }
 
@@ -1964,7 +1964,7 @@
   [data-ui-mode='gundam'] .app-header {
     background:
       linear-gradient(180deg, rgba(18, 23, 27, 0.96), rgba(4, 8, 12, 0.98)),
-      url('/assets/gundam/armor-plate.webp') center/cover no-repeat !important;
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat !important;
     background-blend-mode: normal, multiply !important;
     border-color: rgba(126, 132, 126, 0.52) !important;
     box-shadow:
@@ -1983,7 +1983,7 @@
     border-color: rgba(128, 140, 140, 0.52) !important;
     background:
       linear-gradient(180deg, rgba(18, 24, 29, 0.96), rgba(5, 9, 14, 0.98)),
-      url('/assets/gundam/armor-plate.webp') center/cover no-repeat !important;
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat !important;
     background-blend-mode: normal, soft-light !important;
     color: rgb(var(--gundam-text)) !important;
     box-shadow:
@@ -2037,7 +2037,7 @@
     border-color: rgba(158, 164, 154, 0.62) !important;
     background:
       linear-gradient(90deg, rgba(1, 4, 8, 0.95), rgba(7, 12, 18, 0.56) 42%, rgba(1, 4, 8, 0.92)),
-      url('/assets/gundam/hangar-command.webp') center/cover no-repeat !important;
+      url('/assets/gundam/hangar-command.webp?v=26') center/cover no-repeat !important;
     box-shadow:
       inset 0 0 0 1px rgba(235, 238, 226, 0.08),
       inset 0 -5px 0 rgba(142, 108, 52, 0.24),
@@ -2063,7 +2063,7 @@
     border-color: rgba(128, 140, 140, 0.4) !important;
     background:
       linear-gradient(180deg, rgba(1, 6, 12, 0.24), rgba(1, 6, 12, 0.74)),
-      url('/assets/gundam/boot-hangar.webp') center/cover no-repeat !important;
+      url('/assets/gundam/boot-hangar.webp?v=26') center/cover no-repeat !important;
     box-shadow:
       inset 0 0 0 1px rgba(235, 238, 226, 0.06),
       inset 0 0 54px rgba(0, 0, 0, 0.58) !important;
@@ -2072,7 +2072,7 @@
   [data-ui-mode='gundam'] .dashboard-stat-grid .card {
     background:
       linear-gradient(180deg, rgba(22, 28, 32, 0.96), rgba(6, 10, 14, 0.98)),
-      url('/assets/gundam/armor-plate.webp') center/cover no-repeat !important;
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat !important;
     background-blend-mode: normal, soft-light !important;
     border-color: rgba(128, 140, 140, 0.52) !important;
   }
@@ -2102,19 +2102,263 @@
     min-height: 560px !important;
     background:
       linear-gradient(135deg, rgba(5, 8, 11, 0.92), rgba(18, 24, 29, 0.82)),
-      url('/assets/gundam/armor-plate.webp') center/cover no-repeat !important;
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat !important;
     background-blend-mode: normal, soft-light !important;
   }
 
   .gundam-boot-unit {
     background:
       linear-gradient(180deg, rgba(1, 5, 9, 0.12), rgba(1, 5, 9, 0.72)),
-      url('/assets/gundam/boot-hangar.webp') center/cover no-repeat !important;
+      url('/assets/gundam/boot-hangar.webp?v=26') center/cover no-repeat !important;
   }
 
   .gundam-boot-corners::before,
   .gundam-boot-corners::after {
     background: linear-gradient(90deg, rgba(142, 108, 52, 0.86), rgba(128, 140, 140, 0.56), rgba(95, 38, 36, 0.34)) !important;
+  }
+
+  /* ============ Gundam v25 收口层：位图机库 + 装甲维护终端 ============ */
+  [data-ui-mode='gundam'] {
+    --gundam-armor: 166 170 158;
+    --gundam-armor-soft: 78 82 76;
+    --gundam-gunmetal: 2 5 8;
+    --gundam-gunmetal-soft: 10 14 18;
+    --gundam-terminal: 3 10 16;
+    --gundam-warning: 146 112 52;
+    --gundam-alert: 92 32 30;
+    --gundam-signal: 56 105 116;
+    --gundam-accent: 132 140 132;
+    --gundam-text: 225 226 214;
+    --gundam-muted: 150 158 154;
+  }
+
+  [data-ui-mode='gundam'] body {
+    background:
+      radial-gradient(circle at 52% 12%, rgba(67, 120, 128, 0.14), transparent 29rem),
+      linear-gradient(180deg, rgba(0, 2, 5, 0.18), rgba(0, 2, 5, 0.7) 64%, rgba(0, 1, 3, 0.9)),
+      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp?v=26')) center/cover fixed no-repeat,
+      rgb(0 2 5) !important;
+    color: rgb(var(--gundam-text)) !important;
+  }
+
+  [data-ui-mode='gundam'] body::before {
+    background:
+      linear-gradient(90deg, rgba(0, 0, 0, 0.72) 0 7%, transparent 14% 86%, rgba(0, 0, 0, 0.72) 93% 100%),
+      repeating-linear-gradient(180deg, rgba(225, 226, 214, 0.018) 0 1px, transparent 1px 7px) !important;
+    opacity: 0.82 !important;
+  }
+
+  [data-ui-mode='gundam'] body::after {
+    background:
+      linear-gradient(90deg, rgba(146, 112, 52, 0.12), transparent 17%, transparent 83%, rgba(56, 105, 116, 0.12)),
+      radial-gradient(circle at 50% 50%, transparent 0 38%, rgba(0, 0, 0, 0.34) 80%, rgba(0, 0, 0, 0.62) 100%) !important;
+    opacity: 0.55 !important;
+  }
+
+  [data-ui-mode='gundam'] .auth-layout,
+  [data-ui-mode='gundam'] .min-h-screen.bg-gray-50,
+  [data-ui-mode='gundam'] .min-h-screen.dark\:bg-dark-950 {
+    background:
+      radial-gradient(circle at 50% 16%, rgba(56, 105, 116, 0.12), transparent 30rem),
+      linear-gradient(180deg, rgba(0, 2, 5, 0.08), rgba(0, 2, 5, 0.72)),
+      var(--sub2api-gundam-image-url, url('/assets/gundam/hangar-command.webp?v=26')) center/cover fixed no-repeat,
+      rgb(0 2 5) !important;
+  }
+
+  [data-ui-mode='gundam'] .auth-card,
+  [data-ui-mode='gundam'] .card,
+  [data-ui-mode='gundam'] .glass-card,
+  [data-ui-mode='gundam'] .card-glass,
+  [data-ui-mode='gundam'] .dialog-container,
+  [data-ui-mode='gundam'] .modal-content,
+  [data-ui-mode='gundam'] .table-container,
+  [data-ui-mode='gundam'] .ui-mode-selector {
+    clip-path: polygon(0 14px, 14px 0, calc(100% - 26px) 0, 100% 26px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 26px 100%, 0 calc(100% - 26px));
+    border: 1px solid rgba(150, 158, 150, 0.5) !important;
+    background:
+      linear-gradient(180deg, rgba(18, 23, 25, 0.9), rgba(5, 9, 13, 0.96)),
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat !important;
+    background-blend-mode: normal, soft-light !important;
+    box-shadow:
+      0 22px 58px rgba(0, 0, 0, 0.46),
+      inset 0 1px 0 rgba(235, 236, 220, 0.08),
+      inset 0 -4px 0 rgba(146, 112, 52, 0.22),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.58) !important;
+  }
+
+  [data-ui-mode='gundam'] .auth-card::before,
+  [data-ui-mode='gundam'] .card::before,
+  [data-ui-mode='gundam'] .glass-card::before,
+  [data-ui-mode='gundam'] .dialog-container::before,
+  [data-ui-mode='gundam'] .modal-content::before {
+    height: 0.42rem !important;
+    background:
+      linear-gradient(90deg, rgba(146, 112, 52, 0.72) 0 6rem, transparent 6rem 7.2rem, rgba(132, 140, 132, 0.42) 7.2rem 100%),
+      repeating-linear-gradient(135deg, rgba(238, 232, 196, 0.16) 0 4px, transparent 4px 11px) !important;
+    opacity: 0.9 !important;
+  }
+
+  [data-ui-mode='gundam'] .sidebar,
+  [data-ui-mode='gundam'] header,
+  [data-ui-mode='gundam'] .app-header {
+    background:
+      linear-gradient(180deg, rgba(15, 20, 23, 0.96), rgba(3, 7, 11, 0.99)),
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat !important;
+    background-blend-mode: normal, soft-light !important;
+    border-color: rgba(150, 158, 150, 0.46) !important;
+  }
+
+  [data-ui-mode='gundam'] .sidebar-logo {
+    border-radius: 0 !important;
+    background:
+      linear-gradient(135deg, rgba(166, 170, 158, 0.9), rgba(82, 88, 82, 0.92)) !important;
+    color: rgb(5 8 11) !important;
+    box-shadow:
+      inset 0 -3px 0 rgba(146, 112, 52, 0.72),
+      0 0 0 1px rgba(230, 224, 188, 0.18) !important;
+  }
+
+  [data-ui-mode='gundam'] .sidebar-link,
+  [data-ui-mode='gundam'] .ui-mode-option,
+  [data-ui-mode='gundam'] .btn {
+    border-radius: 0 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  [data-ui-mode='gundam'] .sidebar-link:hover,
+  [data-ui-mode='gundam'] .sidebar-link-active,
+  [data-ui-mode='gundam'] .ui-mode-option-active {
+    background:
+      linear-gradient(90deg, rgba(146, 112, 52, 0.18), rgba(18, 32, 40, 0.74)) !important;
+    box-shadow:
+      inset 4px 0 0 rgba(146, 112, 52, 0.9),
+      inset 0 0 0 1px rgba(150, 158, 150, 0.18) !important;
+  }
+
+  [data-ui-mode='gundam'] .gundam-dashboard-banner {
+    position: relative;
+    min-height: 19rem !important;
+    overflow: hidden;
+    border: 1px solid rgba(166, 170, 158, 0.58) !important;
+    background:
+      linear-gradient(90deg, rgba(0, 2, 5, 0.86), rgba(0, 2, 5, 0.38) 46%, rgba(0, 2, 5, 0.88)),
+      url('/assets/gundam/hangar-command.webp?v=26') center 44%/cover no-repeat !important;
+    box-shadow:
+      0 34px 90px rgba(0, 0, 0, 0.62),
+      inset 0 0 0 1px rgba(230, 224, 188, 0.08),
+      inset 0 -6px 0 rgba(146, 112, 52, 0.26) !important;
+  }
+
+  [data-ui-mode='gundam'] .gundam-dashboard-banner::after {
+    content: 'RX-78 HANGAR OS / DECK 07 / SECURITY INTERLOCK';
+    position: absolute;
+    right: 1.4rem;
+    bottom: 1rem;
+    z-index: 1;
+    color: rgba(225, 226, 214, 0.6);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+  }
+
+  [data-ui-mode='gundam'] .gundam-dashboard-banner strong {
+    max-width: 11ch;
+    font-size: clamp(2.2rem, 4vw, 4.8rem) !important;
+    line-height: 0.86 !important;
+    letter-spacing: -0.06em;
+    color: rgb(232 232 218) !important;
+  }
+
+  [data-ui-mode='gundam'] .gundam-dashboard-kicker,
+  [data-ui-mode='gundam'] .gundam-dashboard-subline,
+  [data-ui-mode='gundam'] .gundam-boot-kicker {
+    color: rgba(196, 166, 94, 0.9) !important;
+    letter-spacing: 0.16em;
+  }
+
+  [data-ui-mode='gundam'] .gundam-dashboard-unit {
+    min-height: 14.5rem !important;
+    border: 1px solid rgba(150, 158, 150, 0.38) !important;
+    background:
+      linear-gradient(180deg, rgba(0, 3, 7, 0.08), rgba(0, 3, 7, 0.62)),
+      url('/assets/gundam/boot-hangar.webp?v=26') center/cover no-repeat !important;
+  }
+
+  [data-ui-mode='gundam'] .dashboard-stat-grid .card {
+    min-height: 8.2rem;
+  }
+
+  [data-ui-mode='gundam'] .dashboard-stat-grid .card > div {
+    align-items: flex-start !important;
+  }
+
+  [data-ui-mode='gundam'] .dashboard-stat-grid .card > div::before {
+    top: 0.9rem !important;
+    right: 0.9rem !important;
+    color: rgba(225, 226, 214, 0.48) !important;
+  }
+
+  [data-ui-mode='gundam'] .dashboard-stat-grid .card > div > div:first-child,
+  [data-ui-mode='gundam'] .dashboard-stat-grid .card [class*='rounded-lg'] {
+    border-radius: 0 !important;
+    background:
+      linear-gradient(135deg, rgba(166, 170, 158, 0.18), rgba(8, 14, 20, 0.92)) !important;
+    border: 1px solid rgba(150, 158, 150, 0.28);
+    box-shadow: inset 0 -3px 0 rgba(146, 112, 52, 0.22);
+  }
+
+  [data-ui-mode='gundam'] .dashboard-chart-grid .card,
+  [data-ui-mode='gundam'] .dashboard-terminal-card,
+  [data-ui-mode='gundam'] .dashboard-control-panel {
+    background:
+      linear-gradient(180deg, rgba(2, 9, 15, 0.94), rgba(6, 10, 14, 0.98)),
+      linear-gradient(rgba(56, 105, 116, 0.075) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 105, 116, 0.06) 1px, transparent 1px) !important;
+    background-size: auto, 28px 28px, 28px 28px !important;
+  }
+
+  [data-ui-mode='gundam'] .input,
+  [data-ui-mode='gundam'] select.input,
+  [data-ui-mode='gundam'] textarea.input {
+    border-radius: 0 !important;
+    background: rgba(1, 5, 9, 0.96) !important;
+    border-color: rgba(150, 158, 150, 0.48) !important;
+  }
+
+  [data-ui-mode='gundam'] .btn-primary {
+    background:
+      linear-gradient(180deg, rgba(40, 60, 70, 0.98), rgba(10, 18, 26, 1)) !important;
+    border: 1px solid rgba(160, 164, 144, 0.46) !important;
+    color: rgb(232 232 218) !important;
+    box-shadow:
+      inset 0 -4px 0 rgba(146, 112, 52, 0.7),
+      inset 0 0 0 1px rgba(232, 232, 218, 0.06) !important;
+  }
+
+  .gundam-boot-overlay {
+    background:
+      radial-gradient(circle at 50% 18%, rgba(56, 105, 116, 0.18), transparent 31rem),
+      linear-gradient(135deg, rgba(0, 2, 5, 0.94), rgba(4, 7, 11, 0.98)) !important;
+  }
+
+  .gundam-boot-bg {
+    opacity: 0.92 !important;
+    filter: saturate(0.84) contrast(1.14) brightness(0.72) !important;
+  }
+
+  .gundam-boot-frame {
+    min-height: min(680px, calc(100vh - 5rem)) !important;
+    border-color: rgba(166, 170, 158, 0.52) !important;
+    background:
+      linear-gradient(135deg, rgba(5, 8, 11, 0.8), rgba(18, 24, 29, 0.72)),
+      url('/assets/gundam/armor-plate.webp?v=26') center/cover no-repeat !important;
+  }
+
+  .gundam-boot-unit {
+    background:
+      linear-gradient(180deg, rgba(0, 3, 7, 0.03), rgba(0, 3, 7, 0.52)),
+      url('/assets/gundam/boot-hangar.webp?v=26') center/cover no-repeat !important;
   }
 }
 

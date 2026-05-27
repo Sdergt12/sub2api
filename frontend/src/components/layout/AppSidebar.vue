@@ -142,7 +142,19 @@
     <!-- Bottom Section -->
     <div class="mt-auto border-t border-gray-100 p-3 dark:border-dark-800">
       <!-- Theme Toggle -->
+      <div
+        v-if="isGundamActive"
+        class="sidebar-link mb-2 w-full cursor-default"
+        :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
+        :title="sidebarCollapsed ? 'Gundam 强制深色终端模式' : undefined"
+      >
+        <MoonIcon class="h-5 w-5 flex-shrink-0 text-sky-300" />
+        <span class="sidebar-label text-xs" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
+          Gundam 强制深色终端模式
+        </span>
+      </div>
       <button
+        v-else
         @click="toggleTheme"
         class="sidebar-link mb-2 w-full"
         :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
@@ -841,6 +853,12 @@ function toggleSidebar() {
 }
 
 function toggleTheme() {
+  if (isGundamActive.value) {
+    isDark.value = true
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('theme', 'dark')
+    return
+  }
   isDark.value = !isDark.value
   document.documentElement.classList.toggle('dark', isDark.value)
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
@@ -852,6 +870,7 @@ function toggleUIMode() {
 
 function setUIMode(mode: 'official' | 'gundam') {
   appStore.setUIMode(mode)
+  isDark.value = document.documentElement.classList.contains('dark')
 }
 
 function closeMobile() {
@@ -930,6 +949,13 @@ if (
   isDark.value = true
   document.documentElement.classList.add('dark')
 }
+
+watch(
+  () => appStore.uiMode,
+  () => {
+    isDark.value = document.documentElement.classList.contains('dark')
+  },
+)
 
 // Fetch admin settings (for feature-gated nav items like Ops).
 watch(
