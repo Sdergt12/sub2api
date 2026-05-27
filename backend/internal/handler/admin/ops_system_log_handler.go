@@ -51,17 +51,19 @@ func (h *OpsHandler) ListSystemLogs(c *gin.Context) {
 	}
 
 	filter := &service.OpsSystemLogFilter{
-		Page:            page,
-		PageSize:        pageSize,
-		StartTime:       &start,
-		EndTime:         &end,
-		Level:           strings.TrimSpace(c.Query("level")),
-		Component:       strings.TrimSpace(c.Query("component")),
-		RequestID:       strings.TrimSpace(c.Query("request_id")),
-		ClientRequestID: strings.TrimSpace(c.Query("client_request_id")),
-		Platform:        strings.TrimSpace(c.Query("platform")),
-		Model:           strings.TrimSpace(c.Query("model")),
-		Query:           strings.TrimSpace(c.Query("q")),
+		Page:                page,
+		PageSize:            pageSize,
+		StartTime:           &start,
+		EndTime:             &end,
+		Level:               strings.TrimSpace(c.Query("level")),
+		Component:           strings.TrimSpace(c.Query("component")),
+		RequestID:           strings.TrimSpace(c.Query("request_id")),
+		ClientRequestID:     strings.TrimSpace(c.Query("client_request_id")),
+		Platform:            strings.TrimSpace(c.Query("platform")),
+		Model:               strings.TrimSpace(c.Query("model")),
+		Query:               strings.TrimSpace(c.Query("q")),
+		TokenAuditRiskLevel: strings.TrimSpace(c.Query("risk_level")),
+		TokenAuditTokenType: strings.TrimSpace(c.Query("token_type")),
 	}
 	if v := strings.TrimSpace(c.Query("user_id")); v != "" {
 		id, parseErr := strconv.ParseInt(v, 10, 64)

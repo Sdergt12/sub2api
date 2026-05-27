@@ -6,12 +6,14 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 // AnnouncementHandler handles admin announcement management
@@ -46,19 +48,30 @@ type UpdateAnnouncementRequest struct {
 	EndsAt     *int64                         `json:"ends_at"`   // Unix seconds, 0 = clear
 }
 
+type CreateDirectAnnouncementRequest struct {
+	TargetUserID int64  `json:"target_user_id" binding:"required"`
+	Title        string `json:"title" binding:"required"`
+	Content      string `json:"content" binding:"required"`
+	NotifyMode   string `json:"notify_mode" binding:"omitempty,oneof=silent popup"`
+}
+
 // List handles listing announcements with filters
 // GET /api/v1/admin/announcements
 func (h *AnnouncementHandler) List(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
 	status := strings.TrimSpace(c.Query("status"))
 	search := strings.TrimSpace(c.Query("search"))
+	sortBy := c.DefaultQuery("sort_by", "created_at")
+	sortOrder := c.DefaultQuery("sort_order", "desc")
 	if len(search) > 200 {
 		search = search[:200]
 	}
 
 	params := pagination.PaginationParams{
-		Page:     page,
-		PageSize: pageSize,
+		Page:      page,
+		PageSize:  pageSize,
+		SortBy:    sortBy,
+		SortOrder: sortOrder,
 	}
 
 	items, paginationResult, err := h.announcementService.List(
@@ -135,6 +148,43 @@ func (h *AnnouncementHandler) Create(c *gin.Context) {
 		return
 	}
 
+	response.Success(c, dto.AnnouncementFromService(created))
+}
+
+// CreateDirect 通过现有公告中心发送单用户通知。
+// POST /api/v1/admin/announcements/direct
+func (h *AnnouncementHandler) CreateDirect(c *gin.Context) {
+	var req CreateDirectAnnouncementRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+
+	created, err := h.announcementService.CreateDirect(c.Request.Context(), &service.CreateDirectAnnouncementInput{
+		TargetUserID: req.TargetUserID,
+		Title:        req.Title,
+		Content:      req.Content,
+		NotifyMode:   req.NotifyMode,
+		ActorID:      &subject.UserID,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	// 审计只记录元信息，避免把通知正文写入日志。
+	logger.FromContext(c.Request.Context()).Info("admin.announcement.direct_sent",
+		zap.Int64("actor_user_id", subject.UserID),
+		zap.Int64("target_user_id", req.TargetUserID),
+		zap.Int64("announcement_id", created.ID),
+		zap.String("notify_mode", created.NotifyMode),
+	)
 	response.Success(c, dto.AnnouncementFromService(created))
 }
 
@@ -227,8 +277,10 @@ func (h *AnnouncementHandler) ListReadStatus(c *gin.Context) {
 
 	page, pageSize := response.ParsePagination(c)
 	params := pagination.PaginationParams{
-		Page:     page,
-		PageSize: pageSize,
+		Page:      page,
+		PageSize:  pageSize,
+		SortBy:    c.DefaultQuery("sort_by", "email"),
+		SortOrder: c.DefaultQuery("sort_order", "asc"),
 	}
 	search := strings.TrimSpace(c.Query("search"))
 	if len(search) > 200 {
