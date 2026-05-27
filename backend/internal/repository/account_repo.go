@@ -317,6 +317,10 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 	if account == nil {
 		return nil
 	}
+	schedulable := account.Schedulable
+	if account.Status == service.StatusError {
+		schedulable = false
+	}
 
 	builder := r.client.Account.UpdateOneID(account.ID).
 		SetName(account.Name).
@@ -329,7 +333,7 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		SetPriority(account.Priority).
 		SetStatus(account.Status).
 		SetErrorMessage(account.ErrorMessage).
-		SetSchedulable(account.Schedulable).
+		SetSchedulable(schedulable).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
 
 	if account.RateMultiplier != nil {
@@ -438,6 +442,9 @@ func (r *accountRepository) Delete(ctx context.Context, id int64) error {
 	if _, err := txClient.AccountGroup.Delete().Where(dbaccountgroup.AccountIDEQ(id)).Exec(ctx); err != nil {
 		return err
 	}
+	if _, err := txClient.ExecContext(ctx, "DELETE FROM scheduled_test_plans WHERE account_id = $1", id); err != nil {
+		return err
+	}
 	if _, err := txClient.Account.Delete().Where(dbaccount.IDEQ(id)).Exec(ctx); err != nil {
 		return err
 	}
@@ -447,6 +454,7 @@ func (r *accountRepository) Delete(ctx context.Context, id int64) error {
 			return err
 		}
 	}
+	r.deleteSchedulerAccountSnapshot(ctx, id)
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, buildSchedulerGroupPayload(groupIDs)); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue account delete failed: account=%d err=%v", id, err)
 	}
@@ -471,21 +479,58 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 		case service.StatusActive:
 			q = q.Where(
 				dbaccount.StatusEQ(status),
+				dbaccount.SchedulableEQ(true),
 				dbaccount.Or(
 					dbaccount.RateLimitResetAtIsNil(),
 					dbaccount.RateLimitResetAtLTE(time.Now()),
 				),
+				dbpredicate.Account(func(s *entsql.Selector) {
+					col := s.C("temp_unschedulable_until")
+					s.Where(entsql.Or(
+						entsql.IsNull(col),
+						entsql.LTE(col, entsql.Expr("NOW()")),
+					))
+				}),
 			)
 		case "rate_limited":
-			q = q.Where(dbaccount.RateLimitResetAtGT(time.Now()))
+			q = q.Where(
+				dbaccount.StatusEQ(service.StatusActive),
+				dbaccount.RateLimitResetAtGT(time.Now()),
+				dbpredicate.Account(func(s *entsql.Selector) {
+					col := s.C("temp_unschedulable_until")
+					s.Where(entsql.Or(
+						entsql.IsNull(col),
+						entsql.LTE(col, entsql.Expr("NOW()")),
+					))
+				}),
+			)
 		case "temp_unschedulable":
-			q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
-				col := s.C("temp_unschedulable_until")
-				s.Where(entsql.And(
-					entsql.Not(entsql.IsNull(col)),
-					entsql.GT(col, entsql.Expr("NOW()")),
-				))
-			}))
+			q = q.Where(
+				dbaccount.StatusEQ(service.StatusActive),
+				dbpredicate.Account(func(s *entsql.Selector) {
+					col := s.C("temp_unschedulable_until")
+					s.Where(entsql.And(
+						entsql.Not(entsql.IsNull(col)),
+						entsql.GT(col, entsql.Expr("NOW()")),
+					))
+				}),
+			)
+		case "unschedulable":
+			q = q.Where(
+				dbaccount.StatusEQ(service.StatusActive),
+				dbaccount.SchedulableEQ(false),
+				dbaccount.Or(
+					dbaccount.RateLimitResetAtIsNil(),
+					dbaccount.RateLimitResetAtLTE(time.Now()),
+				),
+				dbpredicate.Account(func(s *entsql.Selector) {
+					col := s.C("temp_unschedulable_until")
+					s.Where(entsql.Or(
+						entsql.IsNull(col),
+						entsql.LTE(col, entsql.Expr("NOW()")),
+					))
+				}),
+			)
 		default:
 			q = q.Where(dbaccount.StatusEQ(status))
 		}
@@ -518,11 +563,14 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 		return nil, nil, err
 	}
 
-	accounts, err := q.
+	accountsQuery := q.
 		Offset(params.Offset()).
-		Limit(params.Limit()).
-		Order(dbent.Desc(dbaccount.FieldID)).
-		All(ctx)
+		Limit(params.Limit())
+	for _, order := range accountListOrder(params) {
+		accountsQuery = accountsQuery.Order(order)
+	}
+
+	accounts, err := accountsQuery.All(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -532,6 +580,50 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 		return nil, nil, err
 	}
 	return outAccounts, paginationResultFromTotal(int64(total), params), nil
+}
+
+func accountListOrder(params pagination.PaginationParams) []func(*entsql.Selector) {
+	sortBy := strings.ToLower(strings.TrimSpace(params.SortBy))
+	sortOrder := params.NormalizedSortOrder(pagination.SortOrderAsc)
+
+	field := dbaccount.FieldName
+	defaultOrder := true
+	switch sortBy {
+	case "", "name":
+		field = dbaccount.FieldName
+	case "id":
+		field = dbaccount.FieldID
+		defaultOrder = false
+	case "status":
+		field = dbaccount.FieldStatus
+		defaultOrder = false
+	case "schedulable":
+		field = dbaccount.FieldSchedulable
+		defaultOrder = false
+	case "priority":
+		field = dbaccount.FieldPriority
+		defaultOrder = false
+	case "rate_multiplier":
+		field = dbaccount.FieldRateMultiplier
+		defaultOrder = false
+	case "last_used_at":
+		field = dbaccount.FieldLastUsedAt
+		defaultOrder = false
+	case "expires_at":
+		field = dbaccount.FieldExpiresAt
+		defaultOrder = false
+	case "created_at":
+		field = dbaccount.FieldCreatedAt
+		defaultOrder = false
+	}
+
+	if sortOrder == pagination.SortOrderDesc {
+		return []func(*entsql.Selector){dbent.Desc(field), dbent.Desc(dbaccount.FieldID)}
+	}
+	if defaultOrder {
+		return []func(*entsql.Selector){dbent.Asc(dbaccount.FieldName), dbent.Asc(dbaccount.FieldID)}
+	}
+	return []func(*entsql.Selector){dbent.Asc(field), dbent.Asc(dbaccount.FieldID)}
 }
 
 func (r *accountRepository) ListByGroup(ctx context.Context, groupID int64) ([]service.Account, error) {
@@ -629,6 +721,7 @@ func (r *accountRepository) SetError(ctx context.Context, id int64, errorMsg str
 		Where(dbaccount.IDEQ(id)).
 		SetStatus(service.StatusError).
 		SetErrorMessage(errorMsg).
+		SetSchedulable(false).
 		Save(ctx)
 	if err != nil {
 		return err
@@ -659,6 +752,15 @@ func (r *accountRepository) syncSchedulerAccountSnapshot(ctx context.Context, ac
 	}
 	if err := r.schedulerCache.SetAccount(ctx, account); err != nil {
 		logger.LegacyPrintf("repository.account", "[Scheduler] sync account snapshot write failed: id=%d err=%v", accountID, err)
+	}
+}
+
+func (r *accountRepository) deleteSchedulerAccountSnapshot(ctx context.Context, accountID int64) {
+	if r == nil || r.schedulerCache == nil || accountID <= 0 {
+		return
+	}
+	if err := r.schedulerCache.DeleteAccount(ctx, accountID); err != nil {
+		logger.LegacyPrintf("repository.account", "[Scheduler] delete account snapshot failed: id=%d err=%v", accountID, err)
 	}
 }
 
