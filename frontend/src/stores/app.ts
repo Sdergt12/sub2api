@@ -21,7 +21,7 @@ export const useAppStore = defineStore('app', () => {
   const themeBeforeGundamStorageKey = 'sub2api_theme_before_gundam'
   const gundamImageStorageKey = 'sub2api_gundam_image_url'
   const gundamBootDurationStorageKey = 'sub2api_gundam_boot_duration_ms'
-  const defaultGundamBootDurationMs = 5600
+  const defaultGundamBootDurationMs = 7200
 
   // ==================== State ====================
 
