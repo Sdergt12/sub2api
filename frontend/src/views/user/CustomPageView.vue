@@ -95,46 +95,6 @@
 
         <!-- Iframe embed mode -->
         <div v-else class="custom-embed-shell">
-          <section v-if="showGameCenterLeaderboard" class="game-leaderboard-panel">
-            <div class="game-leaderboard-header">
-              <div>
-                <p class="game-leaderboard-kicker">Game Center</p>
-                <h3 class="game-leaderboard-title">排行榜</h3>
-              </div>
-              <div class="game-leaderboard-tabs" role="group" aria-label="排行榜时间范围">
-                <button
-                  v-for="range in leaderboardRanges"
-                  :key="range.value"
-                  type="button"
-                  class="game-leaderboard-tab"
-                  :class="{ 'game-leaderboard-tab-active': leaderboardRange === range.value }"
-                  @click="setLeaderboardRange(range.value)"
-                >
-                  {{ range.label }}
-                </button>
-              </div>
-            </div>
-            <div v-if="leaderboardLoading" class="game-leaderboard-empty">正在加载排行榜...</div>
-            <div v-else-if="leaderboardError" class="game-leaderboard-empty text-red-500">{{ leaderboardError }}</div>
-            <div v-else-if="leaderboardItems.length === 0" class="game-leaderboard-empty">暂无战绩，完成一局后将出现在这里。</div>
-            <div v-else class="game-leaderboard-list">
-              <div v-for="item in leaderboardItems" :key="item.user_id" class="game-leaderboard-row">
-                <span class="game-leaderboard-rank">#{{ item.rank }}</span>
-                <img
-                  v-if="item.avatar_url"
-                  :src="item.avatar_url"
-                  alt=""
-                  class="game-leaderboard-avatar"
-                />
-                <span v-else class="game-leaderboard-avatar game-leaderboard-avatar-fallback">
-                  {{ item.username.slice(0, 1).toUpperCase() }}
-                </span>
-                <span class="game-leaderboard-name">{{ item.username }}</span>
-                <span class="game-leaderboard-meta">{{ item.play_count }} 局 · 胜率 {{ formatWinRate(item.win_rate) }}</span>
-                <span class="game-leaderboard-score">{{ formatAmount(item.net_amount) }}</span>
-              </div>
-            </div>
-          </section>
           <a
             :href="embeddedUrl"
             target="_blank"
@@ -164,7 +124,6 @@ import { useAuthStore } from '@/stores/auth'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { getGameCenterLeaderboard, type GameCenterLeaderboardItem, type GameCenterRange } from '@/api/gameCenter'
 import { buildEmbeddedUrl, detectTheme } from '@/utils/embedded-url'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
@@ -188,18 +147,7 @@ const markdownContainer = ref<HTMLElement | null>(null)
 const tocItems = ref<TocItem[]>([])
 const tocVisible = ref(typeof window !== 'undefined' ? window.innerWidth > 768 : true)
 const activeHeadingId = ref('')
-const leaderboardRange = ref<GameCenterRange>('today')
-const leaderboardLoading = ref(false)
-const leaderboardError = ref('')
-const leaderboardItems = ref<GameCenterLeaderboardItem[]>([])
 let themeObserver: MutationObserver | null = null
-
-const leaderboardRanges: Array<{ value: GameCenterRange; label: string }> = [
-  { value: 'today', label: '今日' },
-  { value: '7d', label: '7日' },
-  { value: '30d', label: '30日' },
-  { value: 'all', label: '全部' },
-]
 
 const menuItemId = computed(() => route.params.id as string)
 
@@ -239,13 +187,6 @@ const isValidUrl = computed(() => {
   if (isMarkdownMode.value) return false
   const url = embeddedUrl.value
   return url.startsWith('http://') || url.startsWith('https://')
-})
-
-const showGameCenterLeaderboard = computed(() => {
-  const item = menuItem.value
-  if (!item || isMarkdownMode.value) return false
-  const text = `${item.label || ''} ${item.url || ''}`.toLowerCase()
-  return text.includes('game') || text.includes('游戏') || text.includes('签到') || text.includes('/external/sign/')
 })
 
 function generateHeadingId(text: string, index: number): string {
@@ -392,41 +333,6 @@ function injectCopyButtons() {
   })
 }
 
-function formatAmount(value: number): string {
-  const prefix = value > 0 ? '+' : ''
-  return `${prefix}${Number(value || 0).toFixed(2)}`
-}
-
-function formatWinRate(value: number): string {
-  return `${Math.round(Number(value || 0) * 100)}%`
-}
-
-async function loadLeaderboard() {
-  if (!showGameCenterLeaderboard.value) {
-    leaderboardItems.value = []
-    return
-  }
-  leaderboardLoading.value = true
-  leaderboardError.value = ''
-  try {
-    const result = await getGameCenterLeaderboard({
-      range: leaderboardRange.value,
-      limit: 10,
-    })
-    leaderboardItems.value = result.items
-  } catch (err: any) {
-    leaderboardItems.value = []
-    leaderboardError.value = err?.message || '排行榜加载失败'
-  } finally {
-    leaderboardLoading.value = false
-  }
-}
-
-function setLeaderboardRange(range: GameCenterRange) {
-  leaderboardRange.value = range
-  loadLeaderboard()
-}
-
 watch(markdownSlug, (slug) => {
   if (slug) {
     fetchAndRenderMarkdown(slug)
@@ -434,10 +340,6 @@ watch(markdownSlug, (slug) => {
     renderedHtml.value = ''
     tocItems.value = []
   }
-}, { immediate: true })
-
-watch(showGameCenterLeaderboard, () => {
-  loadLeaderboard()
 }, { immediate: true })
 
 onMounted(async () => {
@@ -558,69 +460,6 @@ onUnmounted(() => {
   background: transparent;
 }
 
-.game-leaderboard-panel {
-  @apply border-b border-gray-200 bg-white/90 px-4 py-3 dark:border-dark-700 dark:bg-dark-900/90;
-}
-
-.game-leaderboard-header {
-  @apply mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between;
-}
-
-.game-leaderboard-kicker {
-  @apply text-[11px] font-semibold uppercase tracking-[0.25em] text-primary-500;
-}
-
-.game-leaderboard-title {
-  @apply text-base font-semibold text-gray-900 dark:text-white;
-}
-
-.game-leaderboard-tabs {
-  @apply flex flex-wrap gap-1;
-}
-
-.game-leaderboard-tab {
-  @apply rounded-md border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:border-dark-600 dark:text-dark-300 dark:hover:bg-dark-700;
-}
-
-.game-leaderboard-tab-active {
-  @apply border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300;
-}
-
-.game-leaderboard-empty {
-  @apply rounded-lg border border-dashed border-gray-200 px-3 py-4 text-center text-sm text-gray-500 dark:border-dark-700 dark:text-dark-400;
-}
-
-.game-leaderboard-list {
-  @apply grid gap-2 lg:grid-cols-2;
-}
-
-.game-leaderboard-row {
-  @apply grid grid-cols-[3rem_2rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-dark-700 dark:bg-dark-800;
-}
-
-.game-leaderboard-rank {
-  @apply font-mono text-xs font-semibold text-gray-500 dark:text-dark-300;
-}
-
-.game-leaderboard-avatar {
-  @apply h-8 w-8 rounded-full object-cover;
-}
-
-.game-leaderboard-avatar-fallback {
-  @apply flex items-center justify-center bg-primary-100 text-xs font-bold text-primary-700 dark:bg-primary-500/20 dark:text-primary-200;
-}
-
-.game-leaderboard-name {
-  @apply min-w-0 truncate font-semibold text-gray-900 dark:text-white;
-}
-
-.game-leaderboard-meta {
-  @apply hidden text-xs text-gray-500 dark:text-dark-400 sm:inline;
-}
-
-.game-leaderboard-score {
-  @apply font-mono text-sm font-bold text-emerald-600 dark:text-emerald-300;
-}
 </style>
 
 <style>

@@ -54,4 +54,17 @@ describe('useAppStore UI 模式与主题联动', () => {
     expect(localStorage.getItem('theme')).toBe('dark')
     expect(document.documentElement.classList.contains('dark')).toBe(true)
   })
+
+  it('Gundam 开屏默认 10 秒，并限制在 3-15 秒内', () => {
+    const store = useAppStore()
+
+    expect(store.gundamBootDurationMs).toBe(10000)
+
+    store.setGundamBootDurationMs(18000)
+    expect(store.gundamBootDurationMs).toBe(15000)
+    expect(localStorage.getItem('sub2api_gundam_boot_duration_ms')).toBe('15000')
+
+    store.setGundamBootDurationMs(1200)
+    expect(store.gundamBootDurationMs).toBe(3000)
+  })
 })

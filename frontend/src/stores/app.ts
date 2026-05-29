@@ -21,7 +21,7 @@ export const useAppStore = defineStore('app', () => {
   const themeBeforeGundamStorageKey = 'sub2api_theme_before_gundam'
   const gundamImageStorageKey = 'sub2api_gundam_image_url'
   const gundamBootDurationStorageKey = 'sub2api_gundam_boot_duration_ms'
-  const defaultGundamBootDurationMs = 7200
+  const defaultGundamBootDurationMs = 10000
 
   // ==================== State ====================
 
@@ -74,7 +74,7 @@ export const useAppStore = defineStore('app', () => {
   function normalizeGundamBootDuration(value: unknown): number {
     const parsed = Number(value)
     if (!Number.isFinite(parsed)) return defaultGundamBootDurationMs
-    return Math.min(8000, Math.max(3000, Math.round(parsed)))
+    return Math.min(15000, Math.max(3000, Math.round(parsed)))
   }
 
   function isEmbeddedRuntime(): boolean {
