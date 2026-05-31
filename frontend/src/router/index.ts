@@ -572,6 +572,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/reward-config',
+    name: 'AdminRewardConfig',
+    component: () => import('@/views/admin/RewardConfigView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Reward Config',
+      titleKey: 'admin.rewardConfig.title',
+      descriptionKey: 'admin.rewardConfig.description'
+    }
+  },
+  {
     path: '/admin/risk-control',
     name: 'AdminRiskControl',
     component: () => import('@/views/admin/RiskControlView.vue'),

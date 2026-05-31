@@ -1215,6 +1215,58 @@ export interface OpenAIFastPolicySettings {
   rules: OpenAIFastPolicyRule[];
 }
 
+export type RewardGameId = "flip_card" | "lucky_wheel" | "smash_egg";
+export type RewardRiskMode = "steady" | "high_multiplier";
+
+export interface RewardSignTier {
+  min: number;
+  max: number;
+  weight: number;
+}
+
+export interface RewardGameBucket {
+  bucket: number;
+  weight: number;
+}
+
+export interface RewardRuntimeConfig {
+  sign: {
+    reward_tiers: RewardSignTier[];
+    bonus_day3: number;
+    bonus_day7: number;
+    bonus_day15: number;
+    bonus_day30: number;
+  };
+  game_center: {
+    free_play_limit: number;
+    paid_play_limit: number;
+    paid_play_cost: string;
+    daily_net_reward_hard_cap: string;
+    disabled_game_ids: RewardGameId[];
+    reward_profiles: Record<RewardGameId, Record<RewardRiskMode, RewardGameBucket[]>>;
+    disable_play_cap_for_testing?: boolean;
+    blocked_user_ids?: number[];
+  };
+  updated_at?: string;
+}
+
+export async function getRewardRuntimeConfig(): Promise<RewardRuntimeConfig> {
+  const { data } = await apiClient.get<RewardRuntimeConfig>(
+    "/admin/settings/reward-config",
+  );
+  return data;
+}
+
+export async function updateRewardRuntimeConfig(
+  config: RewardRuntimeConfig,
+): Promise<RewardRuntimeConfig> {
+  const { data } = await apiClient.put<RewardRuntimeConfig>(
+    "/admin/settings/reward-config",
+    config,
+  );
+  return data;
+}
+
 // ==================== Beta Policy Settings ====================
 
 /**
@@ -1346,6 +1398,8 @@ export const settingsAPI = {
   updateRectifierSettings,
   getBetaPolicySettings,
   updateBetaPolicySettings,
+  getRewardRuntimeConfig,
+  updateRewardRuntimeConfig,
   getWebSearchEmulationConfig,
   updateWebSearchEmulationConfig,
   testWebSearchEmulation,

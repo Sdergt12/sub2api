@@ -467,7 +467,13 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.PUT("/web-search-emulation", h.Admin.Setting.UpdateWebSearchEmulationConfig)
 		adminSettings.POST("/web-search-emulation/test", h.Admin.Setting.TestWebSearchEmulation)
 		adminSettings.POST("/web-search-emulation/reset-usage", h.Admin.Setting.ResetWebSearchUsage)
+		adminSettings.GET("/reward-config", h.Admin.Setting.GetRewardRuntimeConfig)
+		adminSettings.PUT("/reward-config", h.Admin.Setting.UpdateRewardRuntimeConfig)
 	}
+
+	// 兼容计划里的短路径，实际处理仍复用 settings handler。
+	admin.GET("/reward-config", h.Admin.Setting.GetRewardRuntimeConfig)
+	admin.PUT("/reward-config", h.Admin.Setting.UpdateRewardRuntimeConfig)
 }
 
 func registerDataManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {

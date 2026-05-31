@@ -81,6 +81,9 @@ services:
       # =======================================================================
       - TZ=${TZ:-Asia/Shanghai}
 
+      # Runtime config token used by trusted external services (game center/sign).
+      - SUB2API_INTERNAL_CONFIG_TOKEN=${SUB2API_INTERNAL_CONFIG_TOKEN:-}
+
       # =======================================================================
       # Gemini OAuth Configuration (optional)
       # =======================================================================

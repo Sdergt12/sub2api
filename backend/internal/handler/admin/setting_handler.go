@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 
@@ -313,6 +314,95 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 	}
 
 	response.Success(c, systemSettingsResponseData(payload, authSourceDefaults))
+}
+
+// GetRewardRuntimeConfig 返回签到和游戏中心运营额度配置。
+// 管理端读写完整结构，运行时服务只通过 external 接口拿各自子配置。
+func (h *SettingHandler) GetRewardRuntimeConfig(c *gin.Context) {
+	cfg, err := h.settingService.GetRewardRuntimeConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+func (h *SettingHandler) UpdateRewardRuntimeConfig(c *gin.Context) {
+	var req service.RewardRuntimeConfig
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	updated, err := h.settingService.SetRewardRuntimeConfig(c.Request.Context(), &req)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	subject, _ := middleware.GetAuthSubjectFromContext(c)
+	slog.Info("reward runtime config updated",
+		"audit", true,
+		"user_id", subject.UserID,
+		"changed", []string{"reward_runtime_config"},
+	)
+	response.Success(c, updated)
+}
+
+func (h *SettingHandler) GetRuntimeGameCenterConfig(c *gin.Context) {
+	if !validateInternalConfigToken(c) {
+		return
+	}
+	cfg, err := h.settingService.GetRewardGameCenterConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+func (h *SettingHandler) GetRuntimeSignConfig(c *gin.Context) {
+	if !validateInternalConfigToken(c) {
+		return
+	}
+	cfg, err := h.settingService.GetRewardSignConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+func validateInternalConfigToken(c *gin.Context) bool {
+	expected := strings.TrimSpace(os.Getenv("SUB2API_INTERNAL_CONFIG_TOKEN"))
+	if expected == "" {
+		response.Forbidden(c, "internal config token is not configured")
+		return false
+	}
+	actual := strings.TrimSpace(c.GetHeader("X-Internal-Config-Token"))
+	if actual == "" || !secureCompareString(actual, expected) {
+		response.Forbidden(c, "invalid internal config token")
+		return false
+	}
+	return true
+}
+
+func secureCompareString(left string, right string) bool {
+	maxLen := len(left)
+	if len(right) > maxLen {
+		maxLen = len(right)
+	}
+	diff := len(left) ^ len(right)
+	for i := 0; i < maxLen; i++ {
+		var a, b byte
+		if i < len(left) {
+			a = left[i]
+		}
+		if i < len(right) {
+			b = right[i]
+		}
+		diff |= int(a ^ b)
+	}
+	return diff == 0
 }
 
 // openaiFastPolicySettingsToDTO converts service -> dto for OpenAI fast policy.

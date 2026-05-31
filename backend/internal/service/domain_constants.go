@@ -452,6 +452,10 @@ const (
 // 值为 map[platform]{daily,weekly,monthly}，null/缺省 = 不限制；0 = 禁用；>0 = USD 上限。
 const SettingKeyDefaultPlatformQuotas = "default_platform_quotas"
 
+// SettingKeyRewardRuntimeConfig stores runtime sign/game-center quota config.
+// 该配置用于后台热调整签到和游戏中心额度，外部服务通过内部接口读取快照。
+const SettingKeyRewardRuntimeConfig = "reward_runtime_config"
+
 // SettingKeyAuthSourcePlatformQuotas 返回某 auth source 的 platform quota JSON key。
 // 形如 auth_source_default_{source}_platform_quotas
 func SettingKeyAuthSourcePlatformQuotas(source string) string {
