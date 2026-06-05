@@ -588,6 +588,7 @@ func enrichTokenRiskEventRuntime(event *TokenRiskEvent) {
 	if containsString(event.MatchedRules, "insufficient_balance") && !containsString(event.MatchedRules, "insufficient_balance_repeated") {
 		event.MatchedRules = replaceString(event.MatchedRules, "insufficient_balance", "insufficient_balance_single")
 	}
+	// 历史事件写入时可能没有聚合上下文；列表和详情读取时按当前聚合指标补齐风险分类。
 	repeatedInsufficientBalance := event.Count5m >= 5 || event.Count1h >= 20
 	if containsString(event.MatchedRules, "insufficient_balance_single") && repeatedInsufficientBalance {
 		event.RiskCategories = appendUniqueString(removeString(event.RiskCategories, "balance_or_reward_abuse"), "insufficient_balance_abuse")
@@ -595,8 +596,22 @@ func enrichTokenRiskEventRuntime(event *TokenRiskEvent) {
 		if event.RiskScore < 60 {
 			event.RiskScore = 60
 		}
-		event.RiskLevel = riskLevelFromScore(event.RiskScore)
 	}
+	if (event.TokenType == "api_key" || event.TokenType == "admin_api_key") && event.DistinctIP24h >= 4 {
+		event.RiskCategories = appendUniqueString(event.RiskCategories, "api_key_sharing")
+		event.MatchedRules = appendUniqueString(event.MatchedRules, "multi_ip_api_key_usage")
+		if event.RiskScore < 75 {
+			event.RiskScore = 75
+		}
+	}
+	if event.Count5m >= 30 || event.Count1h >= 120 {
+		event.RiskCategories = appendUniqueString(event.RiskCategories, "high_frequency")
+		event.MatchedRules = appendUniqueString(event.MatchedRules, "rpm_anomaly_window")
+		if event.RiskScore < 65 {
+			event.RiskScore = 65
+		}
+	}
+	event.RiskLevel = riskLevelFromScore(event.RiskScore)
 	event.RiskCategories = uniqueSortedStrings(event.RiskCategories)
 	event.MatchedRules = uniqueSortedStrings(event.MatchedRules)
 	event.RecommendedActions = recommendedActions(event.RiskLevel, event.RiskCategories)
@@ -659,7 +674,8 @@ func buildTokenRiskHumanExplanation(event *TokenRiskEvent, contentLogs []*TokenR
 		}
 	}
 	if event.Count5m > 0 || event.Count1h > 0 || event.Count24h > 0 {
-		reasons = append(reasons, fmt.Sprintf("同主体近期频率：5 分钟 %d 次，1 小时 %d 次，24 小时 %d 次，24 小时来源 IP %d 个。", event.Count5m, event.Count1h, event.Count24h, event.DistinctIP24h))
+		rpm := float64(event.Count5m) / 5
+		reasons = append(reasons, fmt.Sprintf("同主体近期频率：5 分钟 %d 次（约 %.1f RPM），1 小时 %d 次，24 小时 %d 次，24 小时来源 IP %d 个。", event.Count5m, rpm, event.Count1h, event.Count24h, event.DistinctIP24h))
 	}
 	if event.FailureReason != "" {
 		reasons = append(reasons, "失败原因："+event.FailureReason)

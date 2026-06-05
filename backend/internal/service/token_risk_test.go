@@ -54,6 +54,44 @@ func TestEnrichTokenRiskEventRuntimePromotesRepeatedLegacyInsufficientBalance(t 
 	}
 }
 
+func TestEnrichTokenRiskEventRuntimePromotesMultiIPAPIKey(t *testing.T) {
+	event := &TokenRiskEvent{
+		TokenType:     "api_key",
+		RiskScore:     30,
+		RiskLevel:     TokenRiskLevelMedium,
+		DistinctIP24h: 4,
+	}
+	enrichTokenRiskEventRuntime(event)
+	if !containsString(event.RiskCategories, "api_key_sharing") {
+		t.Fatalf("expected api_key_sharing category, got %#v", event.RiskCategories)
+	}
+	if !containsString(event.MatchedRules, "multi_ip_api_key_usage") {
+		t.Fatalf("expected multi IP rule, got %#v", event.MatchedRules)
+	}
+	if event.RiskLevel != TokenRiskLevelHigh {
+		t.Fatalf("expected high risk after multi IP promotion, got %s", event.RiskLevel)
+	}
+}
+
+func TestEnrichTokenRiskEventRuntimePromotesRPMAnomaly(t *testing.T) {
+	event := &TokenRiskEvent{
+		TokenType: "api_key",
+		RiskScore: 30,
+		RiskLevel: TokenRiskLevelMedium,
+		Count5m:   30,
+	}
+	enrichTokenRiskEventRuntime(event)
+	if !containsString(event.RiskCategories, "high_frequency") {
+		t.Fatalf("expected high_frequency category, got %#v", event.RiskCategories)
+	}
+	if !containsString(event.MatchedRules, "rpm_anomaly_window") {
+		t.Fatalf("expected rpm anomaly rule, got %#v", event.MatchedRules)
+	}
+	if event.RiskLevel != TokenRiskLevelHigh {
+		t.Fatalf("expected high risk after RPM promotion, got %s", event.RiskLevel)
+	}
+}
+
 func TestBuildTokenRiskHumanExplanationNoContentForModelsEndpoint(t *testing.T) {
 	event := &TokenRiskEvent{
 		Method:        "GET",
