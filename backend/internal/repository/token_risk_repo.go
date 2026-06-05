@@ -294,7 +294,7 @@ func (r *tokenRiskRepository) listTokenRiskBreakdown(ctx context.Context, eventI
 	if limit <= 0 || limit > 50 {
 		limit = 10
 	}
-	valueExpr := "COALESCE(NULLIF(w.client_ip, ''), '-')"
+	var valueExpr string
 	switch kind {
 	case "ip":
 		valueExpr = "COALESCE(NULLIF(w.client_ip, ''), '-')"
