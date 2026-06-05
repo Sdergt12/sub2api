@@ -795,6 +795,7 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
     { path: '/admin/token-audit', label: t('nav.tokenAudit'), icon: KeyIcon },
     { path: '/admin/format-converter', label: t('nav.formatConverter'), icon: TicketIcon, hideInSimpleMode: true },
+    { path: '/admin/reward-config', label: '运营配置', icon: GiftIcon, hideInSimpleMode: true },
     { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
     { path: '/admin/risk-control', label: t('nav.riskControl'), icon: ShieldIcon, hideInSimpleMode: true, featureFlag: flagRiskControl },
     { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },

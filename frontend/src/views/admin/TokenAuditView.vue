@@ -270,6 +270,151 @@
           </div>
         </div>
 
+        <div class="grid grid-cols-1 gap-3 xl:grid-cols-4">
+          <div class="rounded-xl border border-gray-200 p-3 dark:border-dark-700">
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">主体信息</p>
+            <dl class="mt-3 space-y-2 text-sm">
+              <div class="flex justify-between gap-3">
+                <dt class="text-gray-500">用户名</dt>
+                <dd class="truncate font-medium text-gray-900 dark:text-white" :title="subjectProfile?.username || ''">{{ subjectProfile?.username || '-' }}</dd>
+              </div>
+              <div class="flex justify-between gap-3">
+                <dt class="text-gray-500">用户 ID</dt>
+                <dd class="font-mono text-gray-900 dark:text-white">{{ subjectProfile?.user_id ?? selectedEvent.user_id ?? '-' }}</dd>
+              </div>
+              <div class="flex justify-between gap-3">
+                <dt class="text-gray-500">API key</dt>
+                <dd class="truncate font-mono text-gray-900 dark:text-white" :title="subjectProfile?.api_key_name || subjectProfile?.api_key_summary || ''">
+                  {{ subjectProfile?.api_key_name || subjectProfile?.api_key_summary || '-' }}
+                </dd>
+              </div>
+              <div class="flex justify-between gap-3">
+                <dt class="text-gray-500">Key ID</dt>
+                <dd class="font-mono text-gray-900 dark:text-white">{{ subjectProfile?.api_key_id ?? selectedEvent.api_key_id ?? '-' }}</dd>
+              </div>
+              <div class="flex justify-between gap-3">
+                <dt class="text-gray-500">Token 类型</dt>
+                <dd class="font-mono text-gray-900 dark:text-white">{{ subjectProfile?.token_type || selectedEvent.token_type || '-' }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="rounded-xl border border-gray-200 p-3 dark:border-dark-700">
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">RPM 快照</p>
+            <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div class="rounded-lg bg-gray-50 p-2 dark:bg-dark-700/50">
+                <p class="text-xs text-gray-500">5 分钟</p>
+                <p class="mt-1 font-semibold text-gray-900 dark:text-white">{{ rpmSnapshot?.count_5m ?? selectedEvent.count_5m ?? 0 }} 次 / {{ rpmSnapshot?.rpm_5m ?? rpm(selectedEvent) }} RPM</p>
+              </div>
+              <div class="rounded-lg bg-gray-50 p-2 dark:bg-dark-700/50">
+                <p class="text-xs text-gray-500">1 小时</p>
+                <p class="mt-1 font-semibold text-gray-900 dark:text-white">{{ rpmSnapshot?.count_1h ?? selectedEvent.count_1h ?? 0 }} 次 / {{ rpmSnapshot?.rpm_1h ?? '-' }} RPM</p>
+              </div>
+              <div class="rounded-lg bg-gray-50 p-2 dark:bg-dark-700/50">
+                <p class="text-xs text-gray-500">24 小时</p>
+                <p class="mt-1 font-semibold text-gray-900 dark:text-white">{{ rpmSnapshot?.count_24h ?? selectedEvent.count_24h ?? 0 }} 次</p>
+              </div>
+              <div class="rounded-lg bg-gray-50 p-2 dark:bg-dark-700/50">
+                <p class="text-xs text-gray-500">来源 IP</p>
+                <p class="mt-1 font-semibold" :class="(rpmSnapshot?.distinct_ip_24h ?? selectedEvent.distinct_ip_24h ?? 0) >= 4 ? 'text-red-600' : 'text-gray-900 dark:text-white'">
+                  {{ rpmSnapshot?.distinct_ip_24h ?? selectedEvent.distinct_ip_24h ?? 0 }} 个
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-gray-200 p-3 dark:border-dark-700 xl:col-span-2">
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">来源 IP</p>
+            <div v-if="ipBreakdown.length === 0" class="mt-3 text-sm text-gray-500">暂无 IP 聚合数据</div>
+            <div v-else class="mt-3 max-h-52 overflow-auto">
+              <table class="min-w-full text-sm">
+                <thead class="text-xs text-gray-500">
+                  <tr>
+                    <th class="py-1 text-left">IP</th>
+                    <th class="py-1 text-right">次数</th>
+                    <th class="py-1 text-left">状态码</th>
+                    <th class="py-1 text-right">最近</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in ipBreakdown" :key="item.value" class="border-t border-gray-100 dark:border-dark-700">
+                    <td class="py-1.5 font-mono text-gray-900 dark:text-white">{{ item.value }}</td>
+                    <td class="py-1.5 text-right">{{ item.count }}</td>
+                    <td class="py-1.5 text-xs text-gray-500">{{ statusCodeSummary(item) }}</td>
+                    <td class="py-1.5 text-right text-xs text-gray-500">{{ formatTime(item.last_seen_at || '') }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 xl:grid-cols-3">
+          <div class="rounded-xl border border-gray-200 p-3 dark:border-dark-700">
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">User-Agent</p>
+            <div class="mt-3 space-y-2">
+              <div v-for="item in uaBreakdown.slice(0, 5)" :key="item.value" class="rounded-lg bg-gray-50 p-2 text-sm dark:bg-dark-700/50">
+                <div class="flex justify-between gap-2">
+                  <span class="truncate" :title="item.value">{{ item.value }}</span>
+                  <span class="font-semibold">{{ item.count }}</span>
+                </div>
+              </div>
+              <div v-if="uaBreakdown.length === 0" class="text-sm text-gray-500">暂无 UA 数据</div>
+            </div>
+          </div>
+          <div class="rounded-xl border border-gray-200 p-3 dark:border-dark-700">
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">请求路径</p>
+            <div class="mt-3 space-y-2">
+              <div v-for="item in pathBreakdown.slice(0, 6)" :key="item.value" class="rounded-lg bg-gray-50 p-2 text-sm dark:bg-dark-700/50">
+                <div class="flex justify-between gap-2">
+                  <span class="truncate font-mono" :title="item.value">{{ item.value }}</span>
+                  <span class="font-semibold">{{ item.count }}</span>
+                </div>
+              </div>
+              <div v-if="pathBreakdown.length === 0" class="text-sm text-gray-500">暂无路径数据</div>
+            </div>
+          </div>
+          <div class="rounded-xl border border-gray-200 p-3 dark:border-dark-700">
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">失败原因</p>
+            <div class="mt-3 space-y-2">
+              <div v-for="item in failureBreakdown.slice(0, 6)" :key="item.value" class="rounded-lg bg-gray-50 p-2 text-sm dark:bg-dark-700/50">
+                <div class="flex justify-between gap-2">
+                  <span class="truncate" :title="item.value">{{ item.value }}</span>
+                  <span class="font-semibold">{{ item.count }}</span>
+                </div>
+              </div>
+              <div v-if="failureBreakdown.length === 0" class="text-sm text-gray-500">暂无失败原因数据</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-gray-200 p-3 dark:border-dark-700">
+          <p class="text-sm font-semibold text-gray-900 dark:text-white">最近事件</p>
+          <div v-if="recentEvents.length === 0" class="mt-3 text-sm text-gray-500">暂无最近事件</div>
+          <div v-else class="mt-3 overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead class="text-xs text-gray-500">
+                <tr>
+                  <th class="py-2 text-left">时间</th>
+                  <th class="py-2 text-left">IP</th>
+                  <th class="py-2 text-left">请求</th>
+                  <th class="py-2 text-left">状态/原因</th>
+                  <th class="py-2 text-right">风险</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in recentEvents" :key="item.id" class="border-t border-gray-100 dark:border-dark-700">
+                  <td class="whitespace-nowrap py-2 text-gray-500">{{ formatTime(item.created_at) }}</td>
+                  <td class="py-2 font-mono">{{ item.client_ip || '-' }}</td>
+                  <td class="max-w-[360px] truncate py-2 font-mono" :title="`${item.method} ${item.path}`">{{ item.method || '-' }} {{ item.path || '-' }}</td>
+                  <td class="max-w-[260px] truncate py-2 text-gray-500" :title="item.failure_reason">HTTP {{ item.status_code || '-' }} · {{ item.failure_reason || '-' }}</td>
+                  <td class="py-2 text-right">{{ riskLevelText(item.risk_level) }} · {{ item.risk_score }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="rounded-xl border border-gray-200 p-3 dark:border-dark-700">
           <p class="text-sm font-semibold text-gray-900 dark:text-white">相关内容审核记录</p>
           <p class="mt-1 text-xs text-gray-500">{{ detailExplanation?.content_availability || '无可用内容摘要。' }}</p>
@@ -335,7 +480,17 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Select from '@/components/common/Select.vue'
-import tokenRiskAPI, { type TokenRiskAction, type TokenRiskEvent, type TokenRiskHumanExplanation, type TokenRiskRelatedContentLog, type TokenRiskSummary } from '@/api/admin/tokenRisk'
+import tokenRiskAPI, {
+  type TokenRiskAction,
+  type TokenRiskBreakdownItem,
+  type TokenRiskEvent,
+  type TokenRiskHumanExplanation,
+  type TokenRiskRecentEvent,
+  type TokenRiskRelatedContentLog,
+  type TokenRiskRPMSnapshot,
+  type TokenRiskSubjectProfile,
+  type TokenRiskSummary,
+} from '@/api/admin/tokenRisk'
 import { useAppStore } from '@/stores/app'
 
 const appStore = useAppStore()
@@ -351,6 +506,13 @@ const selectedEvent = ref<TokenRiskEvent | null>(null)
 const actions = ref<TokenRiskAction[]>([])
 const relatedContentLogs = ref<TokenRiskRelatedContentLog[]>([])
 const detailExplanation = ref<TokenRiskHumanExplanation | null>(null)
+const subjectProfile = ref<TokenRiskSubjectProfile | null>(null)
+const ipBreakdown = ref<TokenRiskBreakdownItem[]>([])
+const uaBreakdown = ref<TokenRiskBreakdownItem[]>([])
+const pathBreakdown = ref<TokenRiskBreakdownItem[]>([])
+const failureBreakdown = ref<TokenRiskBreakdownItem[]>([])
+const recentEvents = ref<TokenRiskRecentEvent[]>([])
+const rpmSnapshot = ref<TokenRiskRPMSnapshot | null>(null)
 const actionNote = ref('')
 const showAdvancedFilters = ref(false)
 const filters = reactive({ time_range: '24h', risk_level: '', risk_category: '', status: 'open', token_type: '', q: '' })
@@ -444,6 +606,15 @@ function tokenSummary(row: TokenRiskEvent): string {
   if (row.api_key_summary) return `api_key=${row.api_key_summary}`
   if (row.token_prefix || row.token_suffix) return `${row.token_prefix || '***'}...${row.token_suffix || '***'}`
   return row.token_hash ? `hash=${row.token_hash.slice(0, 12)}...` : '-'
+}
+
+function statusCodeSummary(item: TokenRiskBreakdownItem): string {
+  const codes = item.status_codes || {}
+  const pairs = Object.entries(codes)
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .slice(0, 4)
+    .map(([code, count]) => `${code}:${count}`)
+  return pairs.length ? pairs.join(' / ') : '-'
 }
 
 function eventConclusion(row: TokenRiskEvent): string {
@@ -570,6 +741,13 @@ async function openDetail(row: TokenRiskEvent) {
   actions.value = []
   relatedContentLogs.value = []
   detailExplanation.value = null
+  subjectProfile.value = null
+  ipBreakdown.value = []
+  uaBreakdown.value = []
+  pathBreakdown.value = []
+  failureBreakdown.value = []
+  recentEvents.value = []
+  rpmSnapshot.value = null
   actionNote.value = ''
   try {
     const detail = await tokenRiskAPI.getEvent(row.id)
@@ -577,6 +755,13 @@ async function openDetail(row: TokenRiskEvent) {
     actions.value = detail.actions || []
     relatedContentLogs.value = detail.related_content_logs || []
     detailExplanation.value = detail.human_explanation || null
+    subjectProfile.value = detail.subject_profile || null
+    ipBreakdown.value = detail.ip_breakdown || []
+    uaBreakdown.value = detail.ua_breakdown || []
+    pathBreakdown.value = detail.path_breakdown || []
+    failureBreakdown.value = detail.failure_breakdown || []
+    recentEvents.value = detail.recent_events || []
+    rpmSnapshot.value = detail.rpm_snapshot || null
   } catch (err: any) {
     appStore.showError(err?.response?.data?.detail || err?.message || '详情加载失败')
   }

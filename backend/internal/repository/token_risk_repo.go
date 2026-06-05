@@ -206,6 +206,211 @@ LIMIT $` + itoa(len(args))
 	return out, rows.Err()
 }
 
+func (r *tokenRiskRepository) GetTokenRiskEventDiagnostics(ctx context.Context, event *service.TokenRiskEvent) (*service.TokenRiskEventDiagnostics, error) {
+	if r == nil || r.db == nil || event == nil || event.ID <= 0 {
+		return &service.TokenRiskEventDiagnostics{}, nil
+	}
+	profile, err := r.getTokenRiskSubjectProfile(ctx, event.ID)
+	if err != nil {
+		return nil, err
+	}
+	ipBreakdown, err := r.listTokenRiskBreakdown(ctx, event.ID, "ip", 12)
+	if err != nil {
+		return nil, err
+	}
+	uaBreakdown, err := r.listTokenRiskBreakdown(ctx, event.ID, "ua", 8)
+	if err != nil {
+		return nil, err
+	}
+	pathBreakdown, err := r.listTokenRiskBreakdown(ctx, event.ID, "path", 10)
+	if err != nil {
+		return nil, err
+	}
+	failureBreakdown, err := r.listTokenRiskBreakdown(ctx, event.ID, "failure", 10)
+	if err != nil {
+		return nil, err
+	}
+	recentEvents, err := r.listTokenRiskRecentEvents(ctx, event.ID, 12)
+	if err != nil {
+		return nil, err
+	}
+	return &service.TokenRiskEventDiagnostics{
+		SubjectProfile:   profile,
+		IPBreakdown:      ipBreakdown,
+		UABreakdown:      uaBreakdown,
+		PathBreakdown:    pathBreakdown,
+		FailureBreakdown: failureBreakdown,
+		RecentEvents:     recentEvents,
+		RPMSnapshot: service.TokenRiskRPMSnapshot{
+			Count5m:       event.Count5m,
+			RPM5m:         roundTokenRiskRPM(float64(event.Count5m) / 5),
+			Count1h:       event.Count1h,
+			RPM1h:         roundTokenRiskRPM(float64(event.Count1h) / 60),
+			Count24h:      event.Count24h,
+			RPM24h:        roundTokenRiskRPM(float64(event.Count24h) / 1440),
+			DistinctIP24h: event.DistinctIP24h,
+			Abnormal:      event.Count5m >= 30 || event.Count1h >= 120 || event.DistinctIP24h >= 4,
+		},
+	}, nil
+}
+
+func (r *tokenRiskRepository) getTokenRiskSubjectProfile(ctx context.Context, eventID int64) (*service.TokenRiskSubjectProfile, error) {
+	row := r.db.QueryRowContext(ctx, `
+SELECT
+  e.user_id,
+  COALESCE(NULLIF(u.username, ''), CASE WHEN e.user_id IS NULL THEN '' ELSE 'user-' || e.user_id::text END, ''),
+  COALESCE(u.status, ''),
+  e.api_key_id,
+  COALESCE(ak.name, ''),
+  COALESCE(ak.status, ''),
+  e.api_key_summary,
+  e.token_type,
+  e.token_hash
+FROM token_risk_events e
+LEFT JOIN users u ON u.id = e.user_id
+LEFT JOIN api_keys ak ON ak.id = e.api_key_id
+WHERE e.id = $1`, eventID)
+	var userID, apiKeyID sql.NullInt64
+	var tokenHash string
+	out := &service.TokenRiskSubjectProfile{}
+	if err := row.Scan(
+		&userID, &out.Username, &out.UserStatus,
+		&apiKeyID, &out.APIKeyName, &out.APIKeyStatus,
+		&out.APIKeySummary, &out.TokenType, &tokenHash,
+	); err != nil {
+		return nil, err
+	}
+	if userID.Valid {
+		out.UserID = &userID.Int64
+	}
+	if apiKeyID.Valid {
+		out.APIKeyID = &apiKeyID.Int64
+	}
+	out.TokenHashSummary = summarizeTokenRiskSecret(tokenHash)
+	return out, nil
+}
+
+func (r *tokenRiskRepository) listTokenRiskBreakdown(ctx context.Context, eventID int64, kind string, limit int) ([]service.TokenRiskBreakdownItem, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 10
+	}
+	valueExpr := "COALESCE(NULLIF(w.client_ip, ''), '-')"
+	switch kind {
+	case "ip":
+		valueExpr = "COALESCE(NULLIF(w.client_ip, ''), '-')"
+	case "ua":
+		valueExpr = "COALESCE(NULLIF(w.user_agent, ''), '-')"
+	case "path":
+		valueExpr = "COALESCE(NULLIF(w.method || ' ' || w.path, ' '), '-')"
+	case "failure":
+		valueExpr = "COALESCE(NULLIF(w.failure_reason, ''), NULLIF(w.result, ''), '-')"
+	default:
+		return nil, fmt.Errorf("unsupported token risk breakdown kind")
+	}
+	query := `
+WITH target AS (
+  SELECT * FROM token_risk_events WHERE id = $1
+), grouped AS (
+  SELECT
+    ` + valueExpr + ` AS value,
+    w.status_code,
+    COUNT(*) AS status_count,
+    MIN(w.created_at) AS first_seen_at,
+    MAX(w.created_at) AS last_seen_at
+  FROM token_risk_events w, target e
+  WHERE token_risk_same_subject(w, e)
+    AND w.created_at >= NOW() - INTERVAL '24 hours'
+  GROUP BY value, w.status_code
+), collapsed AS (
+  SELECT
+    value,
+    SUM(status_count) AS total_count,
+    MIN(first_seen_at) AS first_seen_at,
+    MAX(last_seen_at) AS last_seen_at,
+    COALESCE(jsonb_object_agg(status_code::text, status_count), '{}'::jsonb) AS status_codes
+  FROM grouped
+  GROUP BY value
+)
+SELECT value, total_count, first_seen_at, last_seen_at, status_codes::text
+FROM collapsed
+ORDER BY total_count DESC, last_seen_at DESC
+LIMIT $2`
+	rows, err := r.db.QueryContext(ctx, query, eventID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := []service.TokenRiskBreakdownItem{}
+	for rows.Next() {
+		item := service.TokenRiskBreakdownItem{StatusCodes: map[string]int64{}}
+		var firstSeenAt, lastSeenAt sql.NullTime
+		var rawStatusCodes string
+		if err := rows.Scan(&item.Value, &item.Count, &firstSeenAt, &lastSeenAt, &rawStatusCodes); err != nil {
+			return nil, err
+		}
+		if firstSeenAt.Valid {
+			item.FirstSeenAt = &firstSeenAt.Time
+		}
+		if lastSeenAt.Valid {
+			item.LastSeenAt = &lastSeenAt.Time
+		}
+		item.Value = truncateRunes(item.Value, 240)
+		_ = json.Unmarshal([]byte(rawStatusCodes), &item.StatusCodes)
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (r *tokenRiskRepository) listTokenRiskRecentEvents(ctx context.Context, eventID int64, limit int) ([]service.TokenRiskRecentEvent, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 12
+	}
+	rows, err := r.db.QueryContext(ctx, `
+WITH target AS (
+  SELECT * FROM token_risk_events WHERE id = $1
+)
+SELECT
+  w.id, w.created_at, w.client_ip, w.user_agent, w.method, w.path,
+  w.status_code, w.failure_reason, w.risk_level, w.risk_score
+FROM token_risk_events w, target e
+WHERE token_risk_same_subject(w, e)
+ORDER BY w.created_at DESC, w.id DESC
+LIMIT $2`, eventID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := []service.TokenRiskRecentEvent{}
+	for rows.Next() {
+		var item service.TokenRiskRecentEvent
+		if err := rows.Scan(
+			&item.ID, &item.CreatedAt, &item.ClientIP, &item.UserAgent, &item.Method, &item.Path,
+			&item.StatusCode, &item.FailureReason, &item.RiskLevel, &item.RiskScore,
+		); err != nil {
+			return nil, err
+		}
+		item.UserAgent = truncateRunes(item.UserAgent, 180)
+		item.Path = truncateRunes(item.Path, 240)
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func summarizeTokenRiskSecret(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if len(value) <= 12 {
+		return value
+	}
+	return value[:12] + "..."
+}
+
+func roundTokenRiskRPM(value float64) float64 {
+	return float64(int(value*10+0.5)) / 10
+}
+
 func truncateRunes(value string, max int) string {
 	if max <= 0 {
 		return ""

@@ -29,6 +29,7 @@ type TokenRiskRepository interface {
 	ListTokenRiskEvents(ctx context.Context, filter TokenRiskEventFilter) ([]*TokenRiskEvent, int64, error)
 	GetTokenRiskEvent(ctx context.Context, id int64) (*TokenRiskEvent, error)
 	ListRelatedContentModerationLogs(ctx context.Context, event *TokenRiskEvent, limit int) ([]*TokenRiskRelatedContentLog, error)
+	GetTokenRiskEventDiagnostics(ctx context.Context, event *TokenRiskEvent) (*TokenRiskEventDiagnostics, error)
 	UpdateTokenRiskEventStatus(ctx context.Context, id int64, status string, falsePositive bool, actorUserID int64) error
 	CreateTokenRiskAction(ctx context.Context, action *TokenRiskAction) (*TokenRiskAction, error)
 	ListTokenRiskActions(ctx context.Context, eventID int64) ([]*TokenRiskAction, error)
@@ -91,6 +92,13 @@ type TokenRiskEventDetail struct {
 	RelatedContentLogs []*TokenRiskRelatedContentLog `json:"related_content_logs"`
 	RelatedActivity    TokenRiskRelatedActivity      `json:"related_activity"`
 	HumanExplanation   TokenRiskHumanExplanation     `json:"human_explanation"`
+	SubjectProfile     *TokenRiskSubjectProfile      `json:"subject_profile,omitempty"`
+	IPBreakdown        []TokenRiskBreakdownItem      `json:"ip_breakdown"`
+	UABreakdown        []TokenRiskBreakdownItem      `json:"ua_breakdown"`
+	PathBreakdown      []TokenRiskBreakdownItem      `json:"path_breakdown"`
+	FailureBreakdown   []TokenRiskBreakdownItem      `json:"failure_breakdown"`
+	RecentEvents       []TokenRiskRecentEvent        `json:"recent_events"`
+	RPMSnapshot        TokenRiskRPMSnapshot          `json:"rpm_snapshot"`
 }
 
 type TokenRiskRelatedActivity struct {
@@ -105,6 +113,60 @@ type TokenRiskHumanExplanation struct {
 	Reasons              []string `json:"reasons"`
 	RecommendedNextSteps []string `json:"recommended_next_steps"`
 	ContentAvailability  string   `json:"content_availability"`
+}
+
+type TokenRiskEventDiagnostics struct {
+	SubjectProfile   *TokenRiskSubjectProfile `json:"subject_profile,omitempty"`
+	IPBreakdown      []TokenRiskBreakdownItem `json:"ip_breakdown"`
+	UABreakdown      []TokenRiskBreakdownItem `json:"ua_breakdown"`
+	PathBreakdown    []TokenRiskBreakdownItem `json:"path_breakdown"`
+	FailureBreakdown []TokenRiskBreakdownItem `json:"failure_breakdown"`
+	RecentEvents     []TokenRiskRecentEvent   `json:"recent_events"`
+	RPMSnapshot      TokenRiskRPMSnapshot     `json:"rpm_snapshot"`
+}
+
+type TokenRiskSubjectProfile struct {
+	UserID           *int64 `json:"user_id,omitempty"`
+	Username         string `json:"username"`
+	UserStatus       string `json:"user_status"`
+	APIKeyID         *int64 `json:"api_key_id,omitempty"`
+	APIKeyName       string `json:"api_key_name"`
+	APIKeyStatus     string `json:"api_key_status"`
+	APIKeySummary    string `json:"api_key_summary"`
+	TokenType        string `json:"token_type"`
+	TokenHashSummary string `json:"token_hash_summary"`
+}
+
+type TokenRiskBreakdownItem struct {
+	Value       string           `json:"value"`
+	Count       int64            `json:"count"`
+	FirstSeenAt *time.Time       `json:"first_seen_at,omitempty"`
+	LastSeenAt  *time.Time       `json:"last_seen_at,omitempty"`
+	StatusCodes map[string]int64 `json:"status_codes,omitempty"`
+}
+
+type TokenRiskRecentEvent struct {
+	ID            int64     `json:"id"`
+	CreatedAt     time.Time `json:"created_at"`
+	ClientIP      string    `json:"client_ip"`
+	UserAgent     string    `json:"user_agent"`
+	Method        string    `json:"method"`
+	Path          string    `json:"path"`
+	StatusCode    int       `json:"status_code"`
+	FailureReason string    `json:"failure_reason"`
+	RiskLevel     string    `json:"risk_level"`
+	RiskScore     int       `json:"risk_score"`
+}
+
+type TokenRiskRPMSnapshot struct {
+	Count5m       int64   `json:"count_5m"`
+	RPM5m         float64 `json:"rpm_5m"`
+	Count1h       int64   `json:"count_1h"`
+	RPM1h         float64 `json:"rpm_1h"`
+	Count24h      int64   `json:"count_24h"`
+	RPM24h        float64 `json:"rpm_24h"`
+	DistinctIP24h int64   `json:"distinct_ip_24h"`
+	Abnormal      bool    `json:"abnormal"`
 }
 
 type TokenRiskRelatedContentLog struct {
@@ -284,7 +346,14 @@ func (s *TokenRiskService) GetEventDetail(ctx context.Context, id int64) (*Token
 			return nil, err
 		}
 	}
-	return &TokenRiskEventDetail{
+	var diagnostics *TokenRiskEventDiagnostics
+	if s != nil && s.repo != nil {
+		diagnostics, err = s.repo.GetTokenRiskEventDiagnostics(ctx, event)
+		if err != nil {
+			return nil, err
+		}
+	}
+	detail := &TokenRiskEventDetail{
 		Event:              event,
 		Actions:            actions,
 		RelatedContentLogs: relatedLogs,
@@ -295,7 +364,17 @@ func (s *TokenRiskService) GetEventDetail(ctx context.Context, id int64) (*Token
 			DistinctIP24h: event.DistinctIP24h,
 		},
 		HumanExplanation: buildTokenRiskHumanExplanation(event, relatedLogs),
-	}, nil
+	}
+	if diagnostics != nil {
+		detail.SubjectProfile = diagnostics.SubjectProfile
+		detail.IPBreakdown = diagnostics.IPBreakdown
+		detail.UABreakdown = diagnostics.UABreakdown
+		detail.PathBreakdown = diagnostics.PathBreakdown
+		detail.FailureBreakdown = diagnostics.FailureBreakdown
+		detail.RecentEvents = diagnostics.RecentEvents
+		detail.RPMSnapshot = diagnostics.RPMSnapshot
+	}
+	return detail, nil
 }
 
 func (s *TokenRiskService) Summary(ctx context.Context, since time.Time) (*TokenRiskSummary, error) {

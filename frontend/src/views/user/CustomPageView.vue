@@ -95,8 +95,35 @@
 
         <!-- Iframe embed mode -->
         <div v-else class="custom-embed-shell">
+          <div v-if="embedLoading" class="flex h-full items-center justify-center p-10 text-center">
+            <div>
+              <div class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+              <p class="text-sm text-gray-500 dark:text-dark-400">正在初始化嵌入页面...</p>
+            </div>
+          </div>
+          <div v-else-if="embedError" class="flex h-full items-center justify-center p-10 text-center">
+            <div class="max-w-md">
+              <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/30">
+                <Icon name="exclamationCircle" size="lg" class="text-red-500" />
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">游戏中心初始化失败</h3>
+              <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">{{ embedError }}</p>
+              <button class="btn btn-primary mt-4" type="button" @click="refreshEmbeddedSession">重试</button>
+            </div>
+          </div>
+          <div v-else-if="isGameCenterEmbed && !gameCenterEmbedToken" class="flex h-full items-center justify-center p-10 text-center">
+            <div class="max-w-md">
+              <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-900/30">
+                <Icon name="exclamationCircle" size="lg" class="text-amber-500" />
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">等待游戏中心会话</h3>
+              <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">请先登录主站，或点击重试重新换取短期嵌入会话。</p>
+              <button class="btn btn-primary mt-4" type="button" @click="refreshEmbeddedSession">重试</button>
+            </div>
+          </div>
+          <template v-else>
           <a
-            :href="embeddedUrl"
+            :href="effectiveEmbeddedUrl"
             target="_blank"
             rel="noopener noreferrer"
             class="btn btn-secondary btn-sm custom-open-fab"
@@ -105,10 +132,11 @@
             {{ t('customPage.openInNewTab') }}
           </a>
           <iframe
-            :src="embeddedUrl"
+            :src="effectiveEmbeddedUrl"
             class="custom-embed-frame"
             allowfullscreen
           ></iframe>
+          </template>
         </div>
       </div>
     </div>
@@ -125,6 +153,7 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { buildEmbeddedUrl, detectTheme } from '@/utils/embedded-url'
+import { createGameCenterEmbedSession } from '@/api/gameCenter'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
@@ -147,6 +176,9 @@ const markdownContainer = ref<HTMLElement | null>(null)
 const tocItems = ref<TocItem[]>([])
 const tocVisible = ref(typeof window !== 'undefined' ? window.innerWidth > 768 : true)
 const activeHeadingId = ref('')
+const embedLoading = ref(false)
+const embedError = ref('')
+const gameCenterEmbedToken = ref('')
 let themeObserver: MutationObserver | null = null
 
 const menuItemId = computed(() => route.params.id as string)
@@ -183,11 +215,53 @@ const embeddedUrl = computed(() => {
   )
 })
 
+const isGameCenterEmbed = computed(() => {
+  const raw = menuItem.value?.url || ''
+  if (!raw) return false
+  try {
+    const url = new URL(raw)
+    return url.hostname.includes('game-center') || url.pathname === '/embed'
+  } catch {
+    return false
+  }
+})
+
+const effectiveEmbeddedUrl = computed(() => {
+  if (!menuItem.value || isMarkdownMode.value) return ''
+  return buildEmbeddedUrl(
+    menuItem.value.url,
+    authStore.user?.id,
+    isGameCenterEmbed.value ? gameCenterEmbedToken.value : authStore.token,
+    pageTheme.value,
+    locale.value,
+  )
+})
+
 const isValidUrl = computed(() => {
   if (isMarkdownMode.value) return false
-  const url = embeddedUrl.value
+  const url = effectiveEmbeddedUrl.value || embeddedUrl.value
   return url.startsWith('http://') || url.startsWith('https://')
 })
+
+async function refreshEmbeddedSession() {
+  if (!isGameCenterEmbed.value) return
+  if (!authStore.token) {
+    gameCenterEmbedToken.value = ''
+    embedError.value = '登录态无效，请重新登录主站后再打开游戏中心。'
+    return
+  }
+  embedLoading.value = true
+  embedError.value = ''
+  try {
+    const session = await createGameCenterEmbedSession()
+    gameCenterEmbedToken.value = session.embed_token
+  } catch (err: any) {
+    gameCenterEmbedToken.value = ''
+    embedError.value = err?.response?.data?.detail || err?.message || '登录态无效，请重新登录主站后再打开游戏中心。'
+  } finally {
+    embedLoading.value = false
+  }
+}
 
 function generateHeadingId(text: string, index: number): string {
   const base = text
@@ -341,6 +415,18 @@ watch(markdownSlug, (slug) => {
     tocItems.value = []
   }
 }, { immediate: true })
+
+watch(
+  () => [menuItem.value?.url, isMarkdownMode.value, authStore.user?.id, authStore.token],
+  () => {
+    embedError.value = ''
+    gameCenterEmbedToken.value = ''
+    if (isGameCenterEmbed.value && !isMarkdownMode.value) {
+      void refreshEmbeddedSession()
+    }
+  },
+  { immediate: true }
+)
 
 onMounted(async () => {
   pageTheme.value = detectTheme()
