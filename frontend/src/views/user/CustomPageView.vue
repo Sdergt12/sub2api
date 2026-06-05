@@ -228,10 +228,13 @@ const isGameCenterEmbed = computed(() => {
 
 const effectiveEmbeddedUrl = computed(() => {
   if (!menuItem.value || isMarkdownMode.value) return ''
+  if (isGameCenterEmbed.value) {
+    return buildGameCenterEmbeddedUrl(menuItem.value.url, gameCenterEmbedToken.value)
+  }
   return buildEmbeddedUrl(
     menuItem.value.url,
     authStore.user?.id,
-    isGameCenterEmbed.value ? gameCenterEmbedToken.value : authStore.token,
+    authStore.token,
     pageTheme.value,
     locale.value,
   )
@@ -260,6 +263,32 @@ async function refreshEmbeddedSession() {
     embedError.value = err?.response?.data?.detail || err?.message || '登录态无效，请重新登录主站后再打开游戏中心。'
   } finally {
     embedLoading.value = false
+  }
+}
+
+function buildGameCenterEmbeddedUrl(baseUrl: string, embedToken: string): string {
+  if (!baseUrl) return baseUrl
+  try {
+    const url = new URL(baseUrl)
+    if (authStore.user?.id) {
+      url.searchParams.set('user_id', String(authStore.user.id))
+    }
+    if (embedToken) {
+      // 游戏中心只接受主站签发的短期 embed token，避免把长期登录 token 暴露给 Worker。
+      url.searchParams.set('token', embedToken)
+    } else {
+      url.searchParams.delete('token')
+    }
+    url.searchParams.set('theme', pageTheme.value)
+    url.searchParams.set('lang', locale.value)
+    url.searchParams.set('ui_mode', 'embedded')
+    if (typeof window !== 'undefined') {
+      url.searchParams.set('src_host', window.location.origin)
+      url.searchParams.set('src_url', window.location.href)
+    }
+    return url.toString()
+  } catch {
+    return baseUrl
   }
 }
 
