@@ -83,6 +83,50 @@ export interface TokenRiskHumanExplanation {
   content_availability: string
 }
 
+export interface TokenRiskSubjectProfile {
+  user_id?: number
+  username: string
+  user_status: string
+  api_key_id?: number
+  api_key_name: string
+  api_key_status: string
+  api_key_summary: string
+  token_type: string
+  token_hash_summary: string
+}
+
+export interface TokenRiskBreakdownItem {
+  value: string
+  count: number
+  first_seen_at?: string
+  last_seen_at?: string
+  status_codes?: Record<string, number>
+}
+
+export interface TokenRiskRecentEvent {
+  id: number
+  created_at: string
+  client_ip: string
+  user_agent: string
+  method: string
+  path: string
+  status_code: number
+  failure_reason: string
+  risk_level: TokenRiskLevel
+  risk_score: number
+}
+
+export interface TokenRiskRPMSnapshot {
+  count_5m: number
+  rpm_5m: number
+  count_1h: number
+  rpm_1h: number
+  count_24h: number
+  rpm_24h: number
+  distinct_ip_24h: number
+  abnormal: boolean
+}
+
 export interface TokenRiskSubjectStat {
   subject: string
   user_id?: number
@@ -138,6 +182,13 @@ export interface TokenRiskEventDetail {
   related_content_logs: TokenRiskRelatedContentLog[]
   related_activity: TokenRiskRelatedActivity
   human_explanation: TokenRiskHumanExplanation
+  subject_profile?: TokenRiskSubjectProfile
+  ip_breakdown: TokenRiskBreakdownItem[]
+  ua_breakdown: TokenRiskBreakdownItem[]
+  path_breakdown: TokenRiskBreakdownItem[]
+  failure_breakdown: TokenRiskBreakdownItem[]
+  recent_events: TokenRiskRecentEvent[]
+  rpm_snapshot: TokenRiskRPMSnapshot
 }
 
 export interface TokenRiskActionRequest {

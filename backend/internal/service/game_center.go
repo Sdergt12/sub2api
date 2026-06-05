@@ -2,9 +2,17 @@ package service
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -21,9 +29,10 @@ const (
 	GameCenterStakeFree = "free"
 	GameCenterStakePaid = "paid"
 
-	gameCenterDailyFreeLimit = 2
-	gameCenterDailyPaidLimit = 5
-	gameCenterMaxAmount      = 1000000
+	gameCenterDailyFreeLimit         = 2
+	gameCenterDailyPaidLimit         = 5
+	gameCenterMaxAmount              = 1000000
+	gameCenterEmbedTokenMinSecretLen = 16
 )
 
 var (
@@ -120,12 +129,42 @@ type GameCenterMeResponse struct {
 	TodayRank int                  `json:"today_rank"`
 }
 
-type GameCenterService struct {
-	repo GameCenterRepository
+type GameCenterEmbedSession struct {
+	EmbedToken string    `json:"embed_token"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	UserID     int64     `json:"user_id"`
+	Username   string    `json:"username"`
 }
 
-func NewGameCenterService(repo GameCenterRepository) *GameCenterService {
-	return &GameCenterService{repo: repo}
+type GameCenterEmbedSessionVerifyResult struct {
+	Valid     bool      `json:"valid"`
+	ExpiresAt time.Time `json:"expires_at"`
+	UserID    int64     `json:"user_id"`
+	Username  string    `json:"username"`
+	Role      string    `json:"role"`
+	Balance   float64   `json:"balance"`
+	Status    string    `json:"status"`
+}
+
+type gameCenterEmbedTokenPayload struct {
+	UserID    int64  `json:"user_id"`
+	Username  string `json:"username"`
+	Role      string `json:"role"`
+	ExpiresAt int64  `json:"exp"`
+	Nonce     string `json:"nonce"`
+}
+
+type GameCenterService struct {
+	repo        GameCenterRepository
+	userService *UserService
+}
+
+func NewGameCenterService(repo GameCenterRepository, userServices ...*UserService) *GameCenterService {
+	var userService *UserService
+	if len(userServices) > 0 {
+		userService = userServices[0]
+	}
+	return &GameCenterService{repo: repo, userService: userService}
 }
 
 func (s *GameCenterService) RecordPlay(ctx context.Context, userID int64, input GameCenterRecordPlayInput) (*GameCenterPlay, error) {
@@ -222,6 +261,65 @@ func (s *GameCenterService) Me(ctx context.Context, userID int64) (*GameCenterMe
 	return &GameCenterMeResponse{Stats: stats, TodayRank: rank}, nil
 }
 
+func (s *GameCenterService) CreateEmbedSession(ctx context.Context, userID int64) (*GameCenterEmbedSession, error) {
+	if s == nil || s.userService == nil || userID <= 0 {
+		return nil, ErrGameCenterInvalidInput
+	}
+	user, err := s.userService.GetByID(ctx, userID)
+	if err != nil || user == nil || !user.IsActive() {
+		return nil, infraerrors.Unauthorized("GAME_CENTER_USER_INVALID", "game center user is not available")
+	}
+	expiresAt := time.Now().UTC().Add(5 * time.Minute)
+	nonce, err := randomGameCenterNonce()
+	if err != nil {
+		return nil, err
+	}
+	payload := gameCenterEmbedTokenPayload{
+		UserID:    user.ID,
+		Username:  displayGameCenterUsername(user),
+		Role:      user.Role,
+		ExpiresAt: expiresAt.Unix(),
+		Nonce:     nonce,
+	}
+	token, err := encodeGameCenterEmbedToken(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &GameCenterEmbedSession{
+		EmbedToken: token,
+		ExpiresAt:  expiresAt,
+		UserID:     user.ID,
+		Username:   payload.Username,
+	}, nil
+}
+
+func (s *GameCenterService) VerifyEmbedSession(ctx context.Context, token string) (*GameCenterEmbedSessionVerifyResult, error) {
+	if s == nil || s.userService == nil {
+		return nil, ErrGameCenterInvalidInput
+	}
+	payload, err := decodeGameCenterEmbedToken(token)
+	if err != nil {
+		return nil, infraerrors.Unauthorized("GAME_CENTER_EMBED_TOKEN_INVALID", "game center embed token is invalid")
+	}
+	expiresAt := time.Unix(payload.ExpiresAt, 0).UTC()
+	if time.Now().UTC().After(expiresAt) {
+		return nil, infraerrors.Unauthorized("GAME_CENTER_EMBED_TOKEN_EXPIRED", "game center embed token is expired")
+	}
+	user, err := s.userService.GetByID(ctx, payload.UserID)
+	if err != nil || user == nil || !user.IsActive() {
+		return nil, infraerrors.Unauthorized("GAME_CENTER_USER_INVALID", "game center user is not available")
+	}
+	return &GameCenterEmbedSessionVerifyResult{
+		Valid:     true,
+		ExpiresAt: expiresAt,
+		UserID:    user.ID,
+		Username:  displayGameCenterUsername(user),
+		Role:      user.Role,
+		Balance:   user.Balance,
+		Status:    user.Status,
+	}, nil
+}
+
 func BuildGameCenterLeaderboardFilter(gameKey, rangeValue string, limit int) (GameCenterLeaderboardFilter, error) {
 	key := strings.TrimSpace(gameKey)
 	if key != "" && key != "all" && !gameCenterSafeKeyPattern.MatchString(key) {
@@ -316,4 +414,75 @@ func trimGameCenterMetadata(metadata map[string]any) map[string]any {
 		}
 	}
 	return out
+}
+
+func displayGameCenterUsername(user *User) string {
+	if user == nil {
+		return ""
+	}
+	if trimmed := strings.TrimSpace(user.Username); trimmed != "" {
+		return trimmed
+	}
+	return fmt.Sprintf("user-%d", user.ID)
+}
+
+func gameCenterEmbedSecret() string {
+	if value := strings.TrimSpace(os.Getenv("SUB2API_GAME_CENTER_EMBED_SECRET")); value != "" {
+		return value
+	}
+	return strings.TrimSpace(os.Getenv("SUB2API_INTERNAL_CONFIG_TOKEN"))
+}
+
+func randomGameCenterNonce() (string, error) {
+	var buf [16]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf[:]), nil
+}
+
+func encodeGameCenterEmbedToken(payload gameCenterEmbedTokenPayload) (string, error) {
+	secret := gameCenterEmbedSecret()
+	if len(secret) < gameCenterEmbedTokenMinSecretLen {
+		return "", infraerrors.InternalServer("GAME_CENTER_EMBED_SECRET_NOT_CONFIGURED", "game center embed secret is not configured")
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+	body := base64.RawURLEncoding.EncodeToString(raw)
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte(body))
+	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return body + "." + signature, nil
+}
+
+func decodeGameCenterEmbedToken(token string) (gameCenterEmbedTokenPayload, error) {
+	var payload gameCenterEmbedTokenPayload
+	secret := gameCenterEmbedSecret()
+	if len(secret) < gameCenterEmbedTokenMinSecretLen {
+		return payload, infraerrors.InternalServer("GAME_CENTER_EMBED_SECRET_NOT_CONFIGURED", "game center embed secret is not configured")
+	}
+	parts := strings.Split(strings.TrimSpace(token), ".")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return payload, ErrGameCenterInvalidInput
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte(parts[0]))
+	expected := mac.Sum(nil)
+	actual, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil || !hmac.Equal(actual, expected) {
+		return payload, ErrGameCenterInvalidInput
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return payload, err
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return payload, err
+	}
+	if payload.UserID <= 0 || payload.ExpiresAt <= 0 || strings.TrimSpace(payload.Nonce) == "" {
+		return payload, ErrGameCenterInvalidInput
+	}
+	return payload, nil
 }

@@ -2,7 +2,9 @@ package handler
 
 import (
 	"errors"
+	"os"
 	"strconv"
+	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -33,6 +35,39 @@ func (h *GameCenterHandler) GetLeaderboard(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
+}
+
+func validateGameCenterInternalToken(c *gin.Context) bool {
+	expected := strings.TrimSpace(os.Getenv("SUB2API_INTERNAL_CONFIG_TOKEN"))
+	if expected == "" {
+		response.Forbidden(c, "internal config token is not configured")
+		return false
+	}
+	actual := strings.TrimSpace(c.GetHeader("X-Internal-Config-Token"))
+	if actual == "" || !secureCompareGameCenterString(actual, expected) {
+		response.Forbidden(c, "invalid internal config token")
+		return false
+	}
+	return true
+}
+
+func secureCompareGameCenterString(left string, right string) bool {
+	maxLen := len(left)
+	if len(right) > maxLen {
+		maxLen = len(right)
+	}
+	diff := len(left) ^ len(right)
+	for i := 0; i < maxLen; i++ {
+		var a, b byte
+		if i < len(left) {
+			a = left[i]
+		}
+		if i < len(right) {
+			b = right[i]
+		}
+		diff |= int(a ^ b)
+	}
+	return diff == 0
 }
 
 func (h *GameCenterHandler) RecordPlay(c *gin.Context) {
@@ -68,6 +103,39 @@ func (h *GameCenterHandler) GetMe(c *gin.Context) {
 		return
 	}
 	result, err := h.gameCenterService.Me(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *GameCenterHandler) CreateEmbedSession(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	result, err := h.gameCenterService.CreateEmbedSession(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *GameCenterHandler) VerifyEmbedSession(c *gin.Context) {
+	if !validateGameCenterInternalToken(c) {
+		return
+	}
+	var req struct {
+		EmbedToken string `json:"embed_token"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid embed session payload")
+		return
+	}
+	result, err := h.gameCenterService.VerifyEmbedSession(c.Request.Context(), req.EmbedToken)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

@@ -127,6 +127,7 @@ func RegisterUserRoutes(
 			gameCenter.GET("/leaderboard", h.GameCenter.GetLeaderboard)
 			gameCenter.POST("/plays", h.GameCenter.RecordPlay)
 			gameCenter.GET("/me", h.GameCenter.GetMe)
+			gameCenter.POST("/embed-session", h.GameCenter.CreateEmbedSession)
 		}
 	}
 }

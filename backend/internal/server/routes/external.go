@@ -14,4 +14,8 @@ func RegisterExternalRuntimeConfigRoutes(v1 *gin.RouterGroup, h *handler.Handler
 		external.GET("/game-center", h.Admin.Setting.GetRuntimeGameCenterConfig)
 		external.GET("/sign", h.Admin.Setting.GetRuntimeSignConfig)
 	}
+	gameCenter := v1.Group("/external/game-center")
+	{
+		gameCenter.POST("/embed-session/verify", h.GameCenter.VerifyEmbedSession)
+	}
 }

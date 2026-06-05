@@ -56,6 +56,18 @@ export interface GameCenterMeResponse {
   today_rank: number
 }
 
+export interface GameCenterEmbedSession {
+  embed_token: string
+  expires_at: string
+  user_id: number
+  username: string
+}
+
+export async function createGameCenterEmbedSession() {
+  const { data } = await apiClient.post<GameCenterEmbedSession>('/game-center/embed-session')
+  return data
+}
+
 export async function getGameCenterLeaderboard(params: {
   game_key?: string
   range?: GameCenterRange

@@ -4418,35 +4418,6 @@
 	                <Toggle v-model="form.backend_mode_enabled" />
 	              </div>
 
-              <div
-                class="rounded-xl border border-primary-100 bg-primary-50/70 p-4 dark:border-primary-900/40 dark:bg-primary-900/10"
-              >
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div class="flex min-w-0 items-start gap-3">
-                    <span
-                      class="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white text-primary-600 shadow-sm dark:bg-dark-800 dark:text-primary-300"
-                    >
-                      <Icon name="gift" size="md" />
-                    </span>
-                    <div class="min-w-0">
-                      <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                        运营/额度配置
-                      </h3>
-                      <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                        管理签到奖励、连续签到加成、游戏中心次数、成本、收益上限和赔率；保存后运行时配置通常 30 秒内生效。
-                      </p>
-                    </div>
-                  </div>
-                  <RouterLink
-                    to="/admin/reward-config"
-                    class="btn btn-secondary btn-sm inline-flex shrink-0 items-center gap-2"
-                  >
-                    <Icon name="externalLink" size="sm" />
-                    打开配置
-                  </RouterLink>
-                </div>
-              </div>
-
 	              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
                   <label

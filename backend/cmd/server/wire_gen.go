@@ -102,7 +102,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	channelMonitorService := service.ProvideChannelMonitorService(channelMonitorRepository, secretEncryptor)
 	channelMonitorUserHandler := handler.NewChannelMonitorUserHandler(channelMonitorService, settingService)
 	gameCenterRepository := repository.NewGameCenterRepository(db)
-	gameCenterService := service.NewGameCenterService(gameCenterRepository)
+	gameCenterService := service.NewGameCenterService(gameCenterRepository, userService)
 	gameCenterHandler := handler.NewGameCenterHandler(gameCenterService)
 	dashboardAggregationRepository := repository.NewDashboardAggregationRepository(db)
 	dashboardStatsCache := repository.NewDashboardCache(redisClient, configConfig)
