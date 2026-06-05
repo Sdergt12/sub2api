@@ -1,4 +1,5 @@
 <template>
+  <AppLayout>
   <div class="space-y-5 pb-20">
     <section class="card p-5">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -170,7 +171,7 @@
       </section>
     </template>
 
-    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-dark-700 dark:bg-dark-900/90">
+    <div class="sticky bottom-0 z-20 border-t border-gray-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-dark-700 dark:bg-dark-900/90">
       <div class="mx-auto flex max-w-7xl items-center justify-between gap-3">
         <p class="text-xs text-gray-500 dark:text-gray-400">保存后最多 30 秒生效。请避免在高峰期大幅调整赔率。</p>
         <button class="btn btn-primary" :disabled="loading || saving || !config" type="button" @click="save">
@@ -179,10 +180,12 @@
       </div>
     </div>
   </div>
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import AppLayout from '@/components/layout/AppLayout.vue'
 import {
   getRewardRuntimeConfig,
   updateRewardRuntimeConfig,
