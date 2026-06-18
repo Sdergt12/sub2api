@@ -1,0 +1,55 @@
+services:
+  sub2api-sign-api:
+    image: ghcr.io/sdergt12/sub2api-sign-api:${AUX_IMAGE_TAG:?set AUX_IMAGE_TAG to a published auxiliary image tag}
+    container_name: sub2api-sign-api
+    restart: unless-stopped
+    environment:
+      SIGN_APP_NAME: sub2api-sign
+      SIGN_ENV: production
+      GIN_MODE: release
+      SIGN_LISTEN_ADDR: :8092
+      SIGN_DATABASE_URL: ${SIGN_DATABASE_URL}
+      SIGN_REDIS_URL: ${SIGN_REDIS_URL}
+      SIGN_EMBED_TOKEN: ${SIGN_EMBED_TOKEN}
+      SIGN_INTERNAL_BRIDGE_SECRET: ${SIGN_INTERNAL_BRIDGE_SECRET}
+      SIGN_SESSION_COOKIE: sub2api_sign_session
+      SIGN_SESSION_TTL: 2h
+      SIGN_TIMEZONE: Asia/Shanghai
+      SUB2API_BASE_URL: ${SUB2API_BASE_URL}
+      SUB2API_ADMIN_API_KEY: ${SUB2API_ADMIN_API_KEY}
+      SUB2API_INTERNAL_CONFIG_TOKEN: ${SUB2API_INTERNAL_CONFIG_TOKEN:-}
+      SUB2API_USER_TOKEN_MODE: auto
+      SUB2API_GRANT_MODE: create_and_redeem
+      SIGN_RECOVERY_INTERVAL: ${SIGN_RECOVERY_INTERVAL:-5m}
+      SIGN_RECOVERY_BATCH_SIZE: ${SIGN_RECOVERY_BATCH_SIZE:-20}
+      SIGN_REWARD_RULE: ${SIGN_REWARD_RULE:-0.50-2.00:50,2.01-5.00:30,5.01-8.00:15,8.01-10.00:5}
+      SIGN_BONUS_DAY3: ${SIGN_BONUS_DAY3:-0.50}
+      SIGN_BONUS_DAY7: ${SIGN_BONUS_DAY7:-1.00}
+      SIGN_BONUS_DAY15: ${SIGN_BONUS_DAY15:-1.50}
+      SIGN_BONUS_DAY30: ${SIGN_BONUS_DAY30:-3.00}
+      RATE_LIMIT_PER_USER: ${RATE_LIMIT_PER_USER:-3}
+      RATE_LIMIT_PER_IP: ${RATE_LIMIT_PER_IP:-20}
+    ports:
+      - "127.0.0.1:8092:8092"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - sub2api-network
+
+  sub2api-sign-web:
+    image: ghcr.io/sdergt12/sub2api-sign-web:${AUX_IMAGE_TAG:?set AUX_IMAGE_TAG to a published auxiliary image tag}
+    container_name: sub2api-sign-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4174:4174"
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - sub2api-sign-api
+    networks:
+      - sub2api-network
+
+networks:
+  sub2api-network:
+    external: true
+    name: sub2api-ha_sub2api-network

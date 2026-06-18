@@ -1,0 +1,225 @@
+name: Auxiliary Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to publish, for example aux-20260618.1"
+        required: true
+        type: string
+      component:
+        description: "Auxiliary image component to build"
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - risk-api
+          - risk-web
+          - sign-api
+          - sign-web
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  GHCR_OWNER: sdergt12
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: risk-api
+            image: sub2api-risk-api
+            context: services/risk
+            dockerfile: services/risk/Dockerfile.api
+          - component: risk-web
+            image: sub2api-risk-web
+            context: services/risk
+            dockerfile: services/risk/Dockerfile.web
+          - component: sign-api
+            image: sub2api-sign-api
+            context: services/sign
+            dockerfile: services/sign/Dockerfile.api
+          - component: sign-web
+            image: sub2api-sign-web
+            context: services/sign
+            dockerfile: services/sign/Dockerfile.web
+
+    steps:
+      - name: Select component
+        id: select
+        shell: bash
+        run: |
+          if [ "${{ inputs.component }}" = "all" ] || [ "${{ inputs.component }}" = "${{ matrix.component }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate tag
+        if: steps.select.outputs.enabled == 'true'
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$IMAGE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "Invalid image tag: $IMAGE_TAG"
+            exit 1
+          fi
+
+      - name: Checkout
+        if: steps.select.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        if: steps.select.outputs.enabled == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.select.outputs.enabled == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        if: steps.select.outputs.enabled == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build ${{ matrix.component }}
+        if: steps.select.outputs.enabled == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.GHCR_OWNER }}/${{ matrix.image }}:${{ inputs.tag }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ inputs.tag }}
+            org.opencontainers.image.title=${{ matrix.image }}
+
+      - name: Smoke test risk-api
+        if: steps.select.outputs.enabled == 'true' && matrix.component == 'risk-api'
+        shell: bash
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.GHCR_OWNER }}/${{ matrix.image }}:${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          docker network create aux-smoke
+          trap 'docker rm -f smoke-risk-api smoke-postgres smoke-redis >/dev/null 2>&1 || true; docker network rm aux-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name smoke-postgres --network aux-smoke -e POSTGRES_PASSWORD=postgres postgres:16-alpine
+          docker run -d --name smoke-redis --network aux-smoke redis:7-alpine
+          for i in {1..30}; do
+            if docker exec smoke-postgres pg_isready -U postgres >/dev/null 2>&1 && docker exec smoke-redis redis-cli ping >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          docker run -d --name smoke-risk-api --network aux-smoke -p 127.0.0.1:8091:8091 \
+            -e RISK_ENV=production \
+            -e RISK_LISTEN_ADDR=:8091 \
+            -e RISK_DATABASE_URL=postgres://postgres:postgres@smoke-postgres:5432/postgres?sslmode=disable \
+            -e RISK_SIGN_DATABASE_URL=postgres://postgres:postgres@smoke-postgres:5432/postgres?sslmode=disable \
+            -e RISK_REDIS_URL=redis://smoke-redis:6379/0 \
+            -e RISK_REFRESH_ON_START=false \
+            -e RISK_GAME_MONITOR_AUTO_REFRESH=false \
+            "$IMAGE_REF"
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8091/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs smoke-risk-api
+          exit 1
+
+      - name: Smoke test sign-api
+        if: steps.select.outputs.enabled == 'true' && matrix.component == 'sign-api'
+        shell: bash
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.GHCR_OWNER }}/${{ matrix.image }}:${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          docker network create aux-smoke
+          trap 'docker rm -f smoke-sign-api smoke-postgres smoke-redis >/dev/null 2>&1 || true; docker network rm aux-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name smoke-postgres --network aux-smoke -e POSTGRES_PASSWORD=postgres postgres:16-alpine
+          docker run -d --name smoke-redis --network aux-smoke redis:7-alpine
+          for i in {1..30}; do
+            if docker exec smoke-postgres pg_isready -U postgres >/dev/null 2>&1 && docker exec smoke-redis redis-cli ping >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          docker run -d --name smoke-sign-api --network aux-smoke -p 127.0.0.1:8092:8092 \
+            -e SIGN_ENV=production \
+            -e SIGN_LISTEN_ADDR=:8092 \
+            -e SIGN_DATABASE_URL=postgres://postgres:postgres@smoke-postgres:5432/postgres?sslmode=disable \
+            -e SIGN_REDIS_URL=redis://smoke-redis:6379/0 \
+            -e SIGN_RECOVERY_INTERVAL=24h \
+            "$IMAGE_REF"
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8092/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs smoke-sign-api
+          exit 1
+
+      - name: Smoke test risk-web
+        if: steps.select.outputs.enabled == 'true' && matrix.component == 'risk-web'
+        shell: bash
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.GHCR_OWNER }}/${{ matrix.image }}:${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f smoke-risk-web >/dev/null 2>&1 || true' EXIT
+          docker run -d --name smoke-risk-web -p 127.0.0.1:5173:5173 "$IMAGE_REF"
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:5173/healthz >/dev/null && curl -fsS http://127.0.0.1:5173/external/risk/ >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs smoke-risk-web
+          exit 1
+
+      - name: Smoke test sign-web
+        if: steps.select.outputs.enabled == 'true' && matrix.component == 'sign-web'
+        shell: bash
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.GHCR_OWNER }}/${{ matrix.image }}:${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f smoke-sign-web >/dev/null 2>&1 || true' EXIT
+          docker run -d --name smoke-sign-web -p 127.0.0.1:4174:4174 "$IMAGE_REF"
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4174/healthz >/dev/null && curl -fsS http://127.0.0.1:4174/external/sign/ >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs smoke-sign-web
+          exit 1
+
+      - name: Push ${{ matrix.component }}
+        if: steps.select.outputs.enabled == 'true'
+        shell: bash
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.GHCR_OWNER }}/${{ matrix.image }}:${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          docker push "$IMAGE_REF"
+          docker buildx imagetools inspect "$IMAGE_REF"

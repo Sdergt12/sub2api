@@ -127,9 +127,18 @@ deploy/docker-compose.override.yml
 .gocache/
 vite.config.js
 docs/*
+!docs/AUX_IMAGES_DEPLOYMENT.md
+!docs/SECURITY_AUDIT_2026-06-18.md
 .serena/
 .codex/
 frontend/coverage/
 aicodex
 output/
+
+# Auxiliary deployable services are built and published by GitHub Actions.
+!services/
+!services/**
+services/**/node_modules/
+services/**/dist/
+services/**/.cache/
 
