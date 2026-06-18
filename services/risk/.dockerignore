@@ -1,0 +1,12 @@
+.env
+.env.*
+web/node_modules
+web/dist
+node_modules
+dist
+backups
+*.log
+README.md
+migrations
+scripts
+docker-compose*.yml

@@ -1,0 +1,49 @@
+services:
+  sub2api-risk-api:
+    image: ghcr.io/sdergt12/sub2api-risk-api:${AUX_IMAGE_TAG:?set AUX_IMAGE_TAG to a published auxiliary image tag}
+    container_name: sub2api-risk-api
+    restart: unless-stopped
+    environment:
+      RISK_APP_NAME: sub2api-risk
+      RISK_ENV: production
+      GIN_MODE: release
+      RISK_LISTEN_ADDR: :8091
+      RISK_DATABASE_URL: ${DATABASE_URL}
+      RISK_SIGN_DATABASE_URL: ${RISK_SIGN_DATABASE_URL}
+      RISK_REDIS_URL: ${REDIS_URL}
+      RISK_LOG_PATH: /risk/logs
+      RISK_READ_ONLY_MODE: "false"
+      RISK_EMBED_TOKEN: ${RISK_EMBED_TOKEN}
+      RISK_ENABLE_REFRESH_API: "true"
+      RISK_REFRESH_TOKEN: ${RISK_REFRESH_TOKEN}
+      RISK_REFRESH_ON_START: "true"
+      RISK_SOURCE_TABLE: public.risk_usage_logs_source
+      RISK_GAME_INGEST_TOKEN: ${RISK_GAME_INGEST_TOKEN}
+      RISK_GAME_WORKER_BASE_URL: ${RISK_GAME_WORKER_BASE_URL}
+      RISK_GAME_WORKER_PULL_TOKEN: ${RISK_GAME_WORKER_PULL_TOKEN}
+    volumes:
+      - ../sub2api-ha/sub2api:/risk/logs:ro
+    ports:
+      - "127.0.0.1:8091:8091"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - sub2api-network
+
+  sub2api-risk-web:
+    image: ghcr.io/sdergt12/sub2api-risk-web:${AUX_IMAGE_TAG:?set AUX_IMAGE_TAG to a published auxiliary image tag}
+    container_name: sub2api-risk-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5173:5173"
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - sub2api-risk-api
+    networks:
+      - sub2api-network
+
+networks:
+  sub2api-network:
+    external: true
+    name: sub2api-ha_sub2api-network
