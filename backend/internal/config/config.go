@@ -2002,6 +2002,9 @@ func (c *Config) Validate() error {
 		default:
 			return fmt.Errorf("linuxdo_connect.token_auth_method must be one of: client_secret_post/client_secret_basic/none")
 		}
+		if method == "none" && !c.LinuxDo.UsePKCE {
+			return fmt.Errorf("linuxdo_connect.use_pkce must be true when token_auth_method=none")
+		}
 		if (method == "" || method == "client_secret_post" || method == "client_secret_basic") &&
 			strings.TrimSpace(c.LinuxDo.ClientSecret) == "" {
 			return fmt.Errorf("linuxdo_connect.client_secret is required when linuxdo_connect.enabled=true and token_auth_method is client_secret_post/client_secret_basic")
